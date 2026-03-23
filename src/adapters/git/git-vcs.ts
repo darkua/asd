@@ -94,6 +94,21 @@ export class GitVCS implements VCS {
     }
   }
 
+  deleteBranch(key: string): void {
+    const log = createLogger(key);
+    const branch = this.branchName(key);
+    try {
+      this.git(`branch -D ${branch}`);
+      log.debug(`Deleted local branch ${branch}`);
+    } catch { /* branch doesn't exist locally */ }
+    try {
+      execSync(`git push ${this.config.remote} --delete ${branch}`, {
+        cwd: this.config.path, encoding: "utf-8", stdio: "pipe", timeout: 30_000,
+      });
+      log.debug(`Deleted remote branch ${branch}`);
+    } catch { /* remote branch doesn't exist */ }
+  }
+
   closePR(key: string): void {
     const log = createLogger(key);
     try {

@@ -1,4 +1,4 @@
-import type { FeedbackListener, RawFeedbackHandler } from "../../ports/feedback-listener.js";
+import type { FeedbackListener, RawFeedbackHandler, StatusHandler } from "../../ports/feedback-listener.js";
 import type { Store } from "../../ports/store.js";
 import { SlackClient } from "./slack-client.js";
 import { createLogger } from "../../logger.js";
@@ -9,6 +9,7 @@ export class SlackListener implements FeedbackListener {
   private readonly client: SlackClient;
   private readonly store: Store;
   private feedbackHandler: RawFeedbackHandler | null = null;
+  private statusHandler: StatusHandler | null = null;
 
   constructor(client: SlackClient, store: Store) {
     this.client = client;
@@ -17,6 +18,10 @@ export class SlackListener implements FeedbackListener {
 
   onFeedback(handler: RawFeedbackHandler): void {
     this.feedbackHandler = handler;
+  }
+
+  onStatusRequest(handler: StatusHandler): void {
+    this.statusHandler = handler;
   }
 
   async start(): Promise<void> {
@@ -31,8 +36,22 @@ export class SlackListener implements FeedbackListener {
     // Filter: bot messages and subtypes (edits, joins, etc.)
     if (message.bot_id || message.subtype) return;
 
-    // Filter: only thread replies (thread_ts must exist and differ from ts)
-    if (!message.thread_ts || message.thread_ts === message.ts) return;
+    // Handle non-threaded "status" command
+    if (!message.thread_ts || message.thread_ts === message.ts) {
+      const text: string = message.text?.trim().toLowerCase() || "";
+      if (text === "status" && this.statusHandler) {
+        const status = this.statusHandler();
+        const lines = [
+          `*Worker Status*`,
+          `Processing: ${status.processing.length > 0 ? status.processing.join(", ") : "none"}`,
+          `Queue: ${status.queueSize} pending feedback(s)`,
+          `Stats: ${status.stats.done} done, ${status.stats.failed} failed, ${status.stats.processing} processing`,
+        ];
+        await this.client.replyInThread(message.channel, message.ts, lines.join("\n"));
+        return;
+      }
+      return; // not a thread reply and not "status" — ignore
+    }
 
     const text: string = message.text?.trim() || "";
 

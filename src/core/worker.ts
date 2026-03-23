@@ -5,7 +5,7 @@ import type { FeedbackListener } from "../ports/feedback-listener.js";
 import type { Store } from "../ports/store.js";
 import type { VCS } from "../ports/vcs.js";
 import type { AIProvider } from "../ports/ai-provider.js";
-import type { RawFeedback, WorkerConfig } from "../ports/types.js";
+import type { RawFeedback, WorkerConfig, WorkerStatus } from "../ports/types.js";
 import { TaskPipeline } from "./task-pipeline.js";
 
 export class Worker {
@@ -50,6 +50,7 @@ export class Worker {
     // Start feedback listener (if configured and not --once mode)
     if (!this.config.isOnce && this.feedbackListener) {
       this.feedbackListener.onFeedback((raw) => this.handleRawFeedback(raw));
+      this.feedbackListener.onStatusRequest(() => this.getStatus());
       await this.feedbackListener.start();
     }
 
@@ -150,6 +151,34 @@ export class Worker {
 
     log.info(`Feedback received for ${key}: "${raw.feedback.slice(0, 100)}"`);
 
+    // Handle special commands
+    const lowerFeedback = raw.feedback.toLowerCase().trim();
+
+    if (lowerFeedback === "cancel" || lowerFeedback === "stop") {
+      log.info(`Cancel requested for ${key}`);
+      const currentTask = this.store.getTask(key);
+      if (currentTask?.childProcessPid) {
+        await this.ai.kill(currentTask.childProcessPid);
+      }
+      this.store.markFailed(key, "Cancelled by user");
+      await raw.replyFn("Task cancelled.");
+      return;
+    }
+
+    if (lowerFeedback === "retry") {
+      const currentTask = this.store.getTask(key);
+      if (currentTask?.status !== "failed") {
+        await raw.replyFn("Only failed tasks can be retried.");
+        return;
+      }
+      log.info(`Retry requested for ${key}`);
+      this.store.resetTask(key);
+      try { this.vcs.removeWorktree(key); } catch { /* ignore */ }
+      try { this.vcs.deleteBranch(key); } catch { /* ignore */ }
+      await raw.replyFn("Task reset and branch cleaned up. Will be picked up in the next poll cycle.");
+      return;
+    }
+
     // Check if feedback is closed
     if (task.feedbackClosed) {
       await raw.replyFn("Feedback for this task has been closed.");
@@ -245,6 +274,14 @@ export class Worker {
       lockResolve();
       await this.drainFeedbackQueue();
     }
+  }
+
+  private getStatus(): WorkerStatus {
+    return {
+      processing: Array.from(this.processingLock.keys()),
+      queueSize: this.feedbackQueue.length,
+      stats: this.store.getStats(),
+    };
   }
 
   private async drainFeedbackQueue(): Promise<void> {

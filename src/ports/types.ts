@@ -62,6 +62,12 @@ export interface WorkerConfig {
   isOnce: boolean;
 }
 
+export interface WorkerStatus {
+  processing: string[];  // task keys currently processing
+  queueSize: number;
+  stats: { total: number; done: number; failed: number; processing: number };
+}
+
 export interface ProgressEvent {
   turn: number;
   maxTurns: number;
