@@ -207,6 +207,13 @@ export class JsonStore implements Store {
     }
   }
 
+  getTasksByStatus(status: "processing" | "done" | "failed"): StoredTask[] {
+    const state = this.loadState();
+    return Object.values(state.processed)
+      .filter((t) => t.status === status)
+      .map(toStoredTask);
+  }
+
   getStats(): { total: number; done: number; failed: number; processing: number } {
     const state = this.loadState();
     const tasks = Object.values(state.processed);

@@ -28,6 +28,25 @@ export class Worker {
     // Verify prerequisites
     this.vcs.ensureReady();
 
+    // Recover tasks stuck in "processing" from a previous crash
+    const stuckTasks = this.store.getTasksByStatus("processing");
+    for (const task of stuckTasks) {
+      logger.warn(`Recovering stuck task ${task.key} — marking as failed`);
+      this.store.markFailed(task.key, "Worker restarted — task was interrupted");
+
+      // Clear stale PID if process is no longer alive
+      if (task.childProcessPid) {
+        try {
+          process.kill(task.childProcessPid, 0); // check if alive
+        } catch {
+          this.store.clearChildPid(task.key);
+        }
+      }
+    }
+    if (stuckTasks.length > 0) {
+      logger.info(`Recovered ${stuckTasks.length} stuck task(s)`);
+    }
+
     // Start feedback listener (if configured and not --once mode)
     if (!this.config.isOnce && this.feedbackListener) {
       this.feedbackListener.onFeedback((raw) => this.handleRawFeedback(raw));
