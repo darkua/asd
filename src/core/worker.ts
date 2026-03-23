@@ -10,7 +10,7 @@ import { TaskPipeline } from "./task-pipeline.js";
 
 export class Worker {
   private processingLock = new Map<string, Promise<void>>();
-  private feedbackQueue = new Map<string, { feedback: string; mode: "fix" | "redo"; replyFn: (text: string) => Promise<void> }>();
+  private feedbackQueue: Array<{ taskKey: string; feedback: string; mode: "fix" | "redo"; replyFn: (text: string) => Promise<void> }> = [];
   private interval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -225,7 +225,7 @@ export class Worker {
     for (const [lockKey] of this.processingLock) {
       if (lockKey !== key) {
         log.info(`Task ${lockKey} is processing, queuing feedback for ${key}`);
-        this.feedbackQueue.set(key, { feedback, mode, replyFn: raw.replyFn });
+        this.feedbackQueue.push({ taskKey: key, feedback, mode, replyFn: raw.replyFn });
         return;
       }
     }
@@ -248,27 +248,24 @@ export class Worker {
   }
 
   private async drainFeedbackQueue(): Promise<void> {
-    if (this.feedbackQueue.size === 0) return;
+    if (this.feedbackQueue.length === 0) return;
 
-    const entry = this.feedbackQueue.entries().next();
-    if (entry.done) return;
+    const item = this.feedbackQueue.shift()!;
+    const { taskKey, feedback, mode, replyFn } = item;
 
-    const [jiraKey, { feedback, mode, replyFn }] = entry.value;
-    this.feedbackQueue.delete(jiraKey);
-
-    logger.info(`Draining queued feedback for ${jiraKey}`);
+    logger.info(`Draining queued feedback for ${taskKey}`);
 
     let lockResolve!: () => void;
     const lockPromise = new Promise<void>((resolve) => { lockResolve = resolve; });
-    this.processingLock.set(jiraKey, lockPromise);
+    this.processingLock.set(taskKey, lockPromise);
 
     try {
-      await this.pipeline.handleFeedback(jiraKey, feedback, mode);
+      await this.pipeline.handleFeedback(taskKey, feedback, mode);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       await replyFn(`Feedback processing failed: ${errorMsg}`);
     } finally {
-      this.processingLock.delete(jiraKey);
+      this.processingLock.delete(taskKey);
       lockResolve();
       await this.drainFeedbackQueue();
     }
