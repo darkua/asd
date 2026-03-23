@@ -56,5 +56,6 @@ export interface WorkerConfig {
   maxTurns: number;
   timeoutMs: number;
   maxFeedbackRounds: number;
+  maxConcurrent: number;
   isOnce: boolean;
 }

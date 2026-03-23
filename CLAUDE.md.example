@@ -1,0 +1,40 @@
+# CLAUDE.md — AI Agent Rules
+
+> This file is read automatically by Claude Code.  
+> It defines how the AI agent should implement JIRA tasks in this repository.
+
+## Project context
+
+- **Stack**: NestJS, TypeScript, PostgreSQL, TypeORM
+- **Style**: Clean Architecture (controllers → services → repositories)
+- **Tests**: Jest + Supertest for e2e
+
+## Implementation rules
+
+1. Follow existing code patterns — look at neighboring files before creating new ones.
+2. Every new feature needs at least one unit test.
+3. Use conventional commits: `feat(SCOPE): description`, `fix(SCOPE): description`.
+4. Do NOT modify existing tests unless the task explicitly requires it.
+5. Do NOT change configuration files (tsconfig, eslint, package.json) unless required.
+6. Keep PRs focused — one JIRA task = one PR, no unrelated changes.
+
+## Code conventions
+
+- Use `readonly` on injected dependencies.
+- DTOs use `class-validator` decorators.
+- Services return domain types, not raw DB entities.
+- Error handling: throw NestJS `HttpException` subtypes, never raw `Error`.
+
+## Before creating a PR
+
+1. Run `npm run lint` — fix any issues.
+2. Run `npm test` — all tests must pass.
+3. Verify the branch is up to date with the base branch.
+
+## What to do when blocked
+
+If you can't fully implement the task:
+- Implement as much as possible.
+- Add `// TODO(AI-BLOCKED): <reason>` comments where manual work is needed.
+- Note the blocker clearly in the PR description.
+- Still create the draft PR — partial progress is better than no PR.

@@ -104,6 +104,7 @@ async function main(): Promise<void> {
       maxTurns: config.worker.maxTurns,
       timeoutMs: config.worker.timeoutMs,
       maxFeedbackRounds: config.worker.maxFeedbackRounds,
+      maxConcurrent: config.worker.maxConcurrent,
       isOnce,
     },
   );

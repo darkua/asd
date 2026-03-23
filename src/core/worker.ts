@@ -87,19 +87,29 @@ export class Worker {
 
       logger.info(`${newTasks.length} new task(s) to process`);
 
-      // Process sequentially
-      for (const task of newTasks) {
-        let lockResolve!: () => void;
-        const lockPromise = new Promise<void>((resolve) => { lockResolve = resolve; });
-        this.processingLock.set(task.key, lockPromise);
+      const concurrency = this.config.maxConcurrent;
 
-        try {
-          await this.pipeline.processTask(task);
-        } finally {
-          this.processingLock.delete(task.key);
-          lockResolve();
-          await this.drainFeedbackQueue();
+      // Process in batches of maxConcurrent
+      for (let i = 0; i < newTasks.length; i += concurrency) {
+        const batch = newTasks.slice(i, i + concurrency);
+
+        if (batch.length > 1) {
+          logger.info(`Processing batch of ${batch.length} tasks in parallel`);
         }
+
+        await Promise.all(batch.map(async (task) => {
+          let lockResolve!: () => void;
+          const lockPromise = new Promise<void>((resolve) => { lockResolve = resolve; });
+          this.processingLock.set(task.key, lockPromise);
+
+          try {
+            await this.pipeline.processTask(task);
+          } finally {
+            this.processingLock.delete(task.key);
+            lockResolve();
+            await this.drainFeedbackQueue();
+          }
+        }));
       }
     } catch (err) {
       logger.error(`Poll cycle error: ${err}`);
