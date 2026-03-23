@@ -45,6 +45,7 @@ export const config = {
     maxTurns: parseInt(optional("CLAUDE_MAX_TURNS", "100")),
     timeoutMs: parseInt(optional("CLAUDE_TIMEOUT_MS", "600000")),     // 10 min
     maxFeedbackRounds: parseInt(optional("MAX_FEEDBACK_ROUNDS", "3")),
+    healthPort: parseInt(optional("HEALTH_PORT", "0")),
   },
 
   // Paths

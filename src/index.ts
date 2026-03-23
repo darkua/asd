@@ -10,6 +10,7 @@ import { JsonStore } from "./adapters/json-store/json-store.js";
 import { SlackClient } from "./adapters/slack/slack-client.js";
 import { SlackNotifier } from "./adapters/slack/slack-notifier.js";
 import { SlackListener } from "./adapters/slack/slack-listener.js";
+import { HealthServer } from "./adapters/health/health-server.js";
 
 // Core
 import { TaskPipeline } from "./core/task-pipeline.js";
@@ -86,6 +87,12 @@ async function main(): Promise<void> {
   if (!isOnce && config.slack.botToken && config.slack.appToken) {
     await slackClient.start();
     feedbackListener = new SlackListener(slackClient, store);
+  }
+
+  // Start health check endpoint (if configured)
+  const healthServer = new HealthServer(config.worker.healthPort, store);
+  if (config.worker.healthPort > 0) {
+    await healthServer.start();
   }
 
   // ─── Create Core ────────────────────────────────────────
