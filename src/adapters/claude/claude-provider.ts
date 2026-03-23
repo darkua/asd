@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { createLogger } from "../../logger.js";
-import type { AIProvider } from "../../ports/ai-provider.js";
+import type { AIProvider, ProgressCallback } from "../../ports/ai-provider.js";
 import type { TaskInfo, AIResult, FeedbackRequest } from "../../ports/types.js";
 import {
   ALLOWED_TOOLS,
@@ -22,7 +22,7 @@ export class ClaudeProvider implements AIProvider {
     this.baseBranch = config.baseBranch;
   }
 
-  async run(task: TaskInfo, workDir: string): Promise<AIResult> {
+  async run(task: TaskInfo, workDir: string, onProgress?: ProgressCallback): Promise<AIResult> {
     const log = createLogger(task.key);
     const startTime = Date.now();
 
@@ -42,10 +42,10 @@ export class ClaudeProvider implements AIProvider {
     log.info(`Prompt sent to Claude:\n${prompt}`);
     log.info(`System prompt sent to Claude:\n${systemPrompt}`);
 
-    return this.spawnClaude(args, workDir, task.key, log, startTime);
+    return this.spawnClaude(args, workDir, task.key, log, startTime, onProgress);
   }
 
-  async runWithFeedback(task: TaskInfo, workDir: string, feedback: FeedbackRequest): Promise<AIResult> {
+  async runWithFeedback(task: TaskInfo, workDir: string, feedback: FeedbackRequest, onProgress?: ProgressCallback): Promise<AIResult> {
     const log = createLogger(task.key);
     const startTime = Date.now();
 
@@ -64,7 +64,7 @@ export class ClaudeProvider implements AIProvider {
     log.info(`Starting Claude Code with feedback (round ${feedback.round}, mode: ${feedback.mode})`);
     log.info(`Feedback prompt:\n${prompt}`);
 
-    return this.spawnClaude(args, workDir, task.key, log, startTime);
+    return this.spawnClaude(args, workDir, task.key, log, startTime, onProgress);
   }
 
   async kill(pid: number): Promise<void> {
@@ -137,11 +137,13 @@ export class ClaudeProvider implements AIProvider {
     taskKey: string,
     log: ReturnType<typeof createLogger>,
     startTime: number,
+    onProgress?: ProgressCallback,
   ): Promise<AIResult> {
     return new Promise<AIResult>((resolve) => {
       const rawLines: string[] = [];
       const stderrChunks: Buffer[] = [];
       const turnCounter = { value: 0 };
+      const costTracker = { value: undefined as number | undefined };
       let childPid: number | undefined;
 
       const child = spawn("claude", args, {
@@ -162,7 +164,7 @@ export class ClaudeProvider implements AIProvider {
         rawLines.push(line);
         try {
           const event = JSON.parse(line);
-          this.processStreamEvent(event, log, turnCounter);
+          this.processStreamEvent(event, log, turnCounter, costTracker, startTime, onProgress);
         } catch {
           // Not JSON — log raw
           if (line.trim()) log.debug(`[stdout] ${line.slice(0, 500)}`);
@@ -214,6 +216,7 @@ export class ClaudeProvider implements AIProvider {
           durationMs,
           raw: rawOutput,
           pid: childPid,
+          costUsd: costTracker.value,
         });
       });
     });
@@ -223,6 +226,9 @@ export class ClaudeProvider implements AIProvider {
     event: any,
     log: ReturnType<typeof createLogger>,
     turnCounter: { value: number },
+    costTracker: { value: number | undefined },
+    startTime: number,
+    onProgress?: ProgressCallback,
   ): void {
     try {
       if (event.type === "assistant" && event.message?.content) {
@@ -239,8 +245,43 @@ export class ClaudeProvider implements AIProvider {
           }
         }
         turnCounter.value++;
+
+        if (onProgress) {
+          for (const block of event.message.content) {
+            if (block.type === "tool_use") {
+              onProgress({
+                turn: turnCounter.value,
+                maxTurns: this.maxTurns,
+                type: "tool_use",
+                detail: block.name,
+                elapsedMs: Date.now() - startTime,
+              });
+            } else if (block.type === "thinking") {
+              onProgress({
+                turn: turnCounter.value,
+                maxTurns: this.maxTurns,
+                type: "thinking",
+                detail: "reasoning",
+                elapsedMs: Date.now() - startTime,
+              });
+            }
+          }
+        }
       } else if (event.type === "result") {
+        if (event.total_cost_usd != null) {
+          costTracker.value = event.total_cost_usd;
+        }
         log.info(`[result] stop_reason=${event.stop_reason}, turns=${event.num_turns}, cost=$${event.total_cost_usd?.toFixed(2) || "?"}`);
+
+        if (onProgress) {
+          onProgress({
+            turn: turnCounter.value,
+            maxTurns: this.maxTurns,
+            type: "result",
+            detail: event.stop_reason || "done",
+            elapsedMs: Date.now() - startTime,
+          });
+        }
       }
     } catch {
       // Ignore parse errors in individual events

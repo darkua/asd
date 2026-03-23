@@ -447,3 +447,7 @@
 {"timestamp":"2026-03-23T22:54:52.863Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
 {"timestamp":"2026-03-23T22:54:53.183Z","level":"info","message":"Found 0 AI-GEN task(s)"}
 {"timestamp":"2026-03-23T22:54:53.184Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:09:52.875Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:09:52.877Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:09:53.270Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:09:53.271Z","level":"info","message":"No new tasks"}

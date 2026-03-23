@@ -5,7 +5,7 @@ import type { TaskSource } from "../ports/task-source.js";
 import type { Notifier } from "../ports/notifier.js";
 import type { Store } from "../ports/store.js";
 import type { VCS } from "../ports/vcs.js";
-import type { TaskInfo, ThreadRef } from "../ports/types.js";
+import type { TaskInfo, ThreadRef, ProgressEvent } from "../ports/types.js";
 
 export class TaskPipeline {
   constructor(
@@ -58,7 +58,23 @@ export class TaskPipeline {
       if (thread) {
         await this.notifier.notifyTaskStatus(thread, "AI is implementing the task...");
       }
-      const result = await this.ai.run(task, workDir);
+
+      // Create throttled progress notifier
+      let lastProgressTime = 0;
+      const progressCallback = thread ? (event: ProgressEvent) => {
+        const now = Date.now();
+        if (now - lastProgressTime < 60_000) return; // throttle: max 1 per 60s
+        lastProgressTime = now;
+
+        const elapsed = Math.round(event.elapsedMs / 1000);
+        const msg = `Turn ${event.turn}/${event.maxTurns} (${elapsed}s) — ${event.type === "tool_use" ? event.detail : event.type}`;
+        this.notifier.notifyTaskStatus(thread!, msg).catch(() => {});
+      } : undefined;
+
+      const result = await this.ai.run(task, workDir, progressCallback);
+      if (result.costUsd != null) {
+        this.store.setCost(task.key, result.costUsd);
+      }
 
       // Step 5: Handle result
       if (result.success && result.prUrl) {
@@ -165,12 +181,24 @@ export class TaskPipeline {
       const round = taskData.feedbackRound || 1;
       const maxRounds = 3;
 
+      // Create throttled progress notifier for feedback run
+      let lastFeedbackProgressTime = 0;
+      const feedbackProgressCallback = thread ? (event: ProgressEvent) => {
+        const now = Date.now();
+        if (now - lastFeedbackProgressTime < 60_000) return; // throttle: max 1 per 60s
+        lastFeedbackProgressTime = now;
+
+        const elapsed = Math.round(event.elapsedMs / 1000);
+        const msg = `Turn ${event.turn}/${event.maxTurns} (${elapsed}s) — ${event.type === "tool_use" ? event.detail : event.type}`;
+        this.notifier.notifyTaskStatus(thread!, msg).catch(() => {});
+      } : undefined;
+
       const result = await this.ai.runWithFeedback(taskInfo, workDir, {
         feedback,
         mode,
         round,
         maxRounds,
-      });
+      }, feedbackProgressCallback);
 
       if (result.success && result.prUrl) {
         // Validate PR actually exists

@@ -20,6 +20,7 @@ export interface AIResult {
   durationMs: number;
   raw: string;
   pid?: number;
+  costUsd?: number;
 }
 
 export interface FeedbackRequest {
@@ -49,6 +50,7 @@ export interface StoredTask {
   childProcessPid?: number;
   limitReachedAt?: string;
   taskInfo?: TaskInfo;
+  costUsd?: number;
 }
 
 export interface WorkerConfig {
@@ -58,4 +60,12 @@ export interface WorkerConfig {
   maxFeedbackRounds: number;
   maxConcurrent: number;
   isOnce: boolean;
+}
+
+export interface ProgressEvent {
+  turn: number;
+  maxTurns: number;
+  type: "thinking" | "tool_use" | "text" | "result";
+  detail: string; // e.g. tool name or text snippet
+  elapsedMs: number;
 }

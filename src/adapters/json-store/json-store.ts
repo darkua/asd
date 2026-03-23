@@ -19,6 +19,7 @@ interface InternalTask {
   childProcessPid?: number;
   limitReachedAt?: string;
   taskInfo?: TaskInfo;
+  costUsd?: number;
 }
 
 interface State {
@@ -38,6 +39,7 @@ function toStoredTask(t: InternalTask): StoredTask {
     childProcessPid: t.childProcessPid,
     limitReachedAt: t.limitReachedAt,
     taskInfo: t.taskInfo,
+    costUsd: t.costUsd,
   };
   // Support both new (threadId) and legacy (slackThreadTs) field names
   const tid = t.threadId ?? t.slackThreadTs;
@@ -205,6 +207,14 @@ export class JsonStore implements Store {
     if (state.processed[key]) {
       // Only clear limitReachedAt — feedbackRound keeps incrementing for display ("round 4 of 6")
       state.processed[key].limitReachedAt = undefined;
+      this.saveState(state);
+    }
+  }
+
+  setCost(key: string, cost: number): void {
+    const state = this.loadState();
+    if (state.processed[key]) {
+      (state.processed[key] as any).costUsd = cost;
       this.saveState(state);
     }
   }
