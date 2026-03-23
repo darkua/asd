@@ -98,7 +98,7 @@ export class TaskPipeline {
           `AI implementation complete.\nPR: ${result.prUrl}\nDuration: ${(result.durationMs / 1000).toFixed(0)}s\n\nRequires human review before merge.`,
         );
 
-        this.store.markDone(task.key, result.prUrl);
+        this.store.markReview(task.key, result.prUrl);
         const completedThread = await this.notifier.notifyTaskCompleted(task, result, thread);
         if (completedThread && !thread) {
           this.store.setThreadRef(task.key, completedThread);
@@ -223,7 +223,7 @@ export class TaskPipeline {
           key,
           `AI feedback applied (round ${round}).\nPR: ${result.prUrl}\nDuration: ${(result.durationMs / 1000).toFixed(0)}s`,
         );
-        this.store.markDone(key, result.prUrl);
+        this.store.markReview(key, result.prUrl);
 
         if (thread) {
           await this.notifier.replyInThread(thread, `Feedback applied (round ${round}). PR: ${result.prUrl}`);

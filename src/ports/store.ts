@@ -5,7 +5,8 @@ export interface Store {
   getTaskByThread(threadId: string): StoredTask | undefined;
   isProcessed(key: string): boolean;
   markProcessing(key: string): void;
-  markDone(key: string, prUrl: string): void;
+  markReview(key: string, prUrl: string): void;
+  markDone(key: string): void;
   markFailed(key: string, error: string): void;
   markReprocessing(key: string): void;
   resetTask(key: string): void;
@@ -19,6 +20,6 @@ export interface Store {
   resetFeedbackLimit(key: string): void;
   reopenFeedback(key: string): void;
   setCost(key: string, cost: number): void;
-  getTasksByStatus(status: "processing" | "done" | "failed"): StoredTask[];
-  getStats(): { total: number; done: number; failed: number; processing: number };
+  getTasksByStatus(status: "processing" | "review" | "done" | "failed"): StoredTask[];
+  getStats(): { total: number; done: number; review: number; failed: number; processing: number };
 }

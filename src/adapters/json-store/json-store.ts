@@ -6,7 +6,7 @@ interface InternalTask {
   jiraKey: string;
   startedAt: string;
   completedAt?: string;
-  status: "processing" | "done" | "failed";
+  status: "processing" | "review" | "done" | "failed";
   prUrl?: string;
   error?: string;
   threadId?: string;
@@ -91,7 +91,7 @@ export class JsonStore implements Store {
   isProcessed(key: string): boolean {
     const state = this.loadState();
     const task = state.processed[key];
-    return task?.status === "done" || task?.status === "processing";
+    return task?.status === "done" || task?.status === "review" || task?.status === "processing";
   }
 
   markProcessing(key: string): void {
@@ -105,14 +105,23 @@ export class JsonStore implements Store {
     this.saveState(state);
   }
 
-  markDone(key: string, prUrl: string): void {
+  markReview(key: string, prUrl: string): void {
     const state = this.loadState();
     state.processed[key] = {
       ...state.processed[key],
       completedAt: new Date().toISOString(),
-      status: "done",
+      status: "review",
       prUrl,
     };
+    this.saveState(state);
+  }
+
+  markDone(key: string): void {
+    const state = this.loadState();
+    if (state.processed[key]) {
+      state.processed[key].status = "done";
+      state.processed[key].completedAt = new Date().toISOString();
+    }
     this.saveState(state);
   }
 
@@ -235,12 +244,13 @@ export class JsonStore implements Store {
       .map(toStoredTask);
   }
 
-  getStats(): { total: number; done: number; failed: number; processing: number } {
+  getStats(): { total: number; done: number; review: number; failed: number; processing: number } {
     const state = this.loadState();
     const tasks = Object.values(state.processed);
     return {
       total: tasks.length,
       done: tasks.filter((t) => t.status === "done").length,
+      review: tasks.filter((t) => t.status === "review").length,
       failed: tasks.filter((t) => t.status === "failed").length,
       processing: tasks.filter((t) => t.status === "processing").length,
     };

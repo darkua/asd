@@ -41,7 +41,7 @@ export interface StoredTask {
   key: string;
   startedAt: string;
   completedAt?: string;
-  status: "processing" | "done" | "failed";
+  status: "processing" | "review" | "done" | "failed";
   prUrl?: string;
   error?: string;
   threadRef?: ThreadRef;
@@ -65,7 +65,7 @@ export interface WorkerConfig {
 export interface WorkerStatus {
   processing: string[];  // task keys currently processing
   queueSize: number;
-  stats: { total: number; done: number; failed: number; processing: number };
+  stats: { total: number; done: number; review: number; failed: number; processing: number };
 }
 
 export interface ProgressEvent {

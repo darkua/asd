@@ -93,7 +93,7 @@ export class SlackListener implements FeedbackListener {
       const task = this.store.getTask(taskKey);
       if (!task) return;
 
-      const statusEmoji: Record<string, string> = { processing: "🔄", done: "✅", failed: "❌" };
+      const statusEmoji: Record<string, string> = { processing: "🔄", review: "👀", done: "✅", failed: "❌" };
       const emoji = statusEmoji[task.status] || "❓";
       const summary = task.taskInfo?.summary || taskKey;
 
@@ -228,7 +228,7 @@ export class SlackListener implements FeedbackListener {
     const blocks: any[] = [
       {
         type: "section",
-        text: { type: "mrkdwn", text: `*Worker Status*\nProcessing: ${status.processing.length || 0} · Done: ${status.stats.done} · Failed: ${status.stats.failed}` },
+        text: { type: "mrkdwn", text: `*Worker Status*\nProcessing: ${status.processing.length || 0} · Review: ${status.stats.review} · Done: ${status.stats.done} · Failed: ${status.stats.failed}` },
       },
       { type: "divider" },
     ];
@@ -236,6 +236,7 @@ export class SlackListener implements FeedbackListener {
     // Show all tasks (processing, done, failed) — most recent first
     const allTasks = [
       ...this.store.getTasksByStatus("processing"),
+      ...this.store.getTasksByStatus("review"),
       ...this.store.getTasksByStatus("failed"),
       ...this.store.getTasksByStatus("done"),
     ];
@@ -246,7 +247,7 @@ export class SlackListener implements FeedbackListener {
         text: { type: "mrkdwn", text: "No tasks tracked yet." },
       });
     } else {
-      const statusEmoji: Record<string, string> = { processing: "🔄", done: "✅", failed: "❌" };
+      const statusEmoji: Record<string, string> = { processing: "🔄", review: "👀", done: "✅", failed: "❌" };
 
       for (const task of allTasks.slice(0, 15)) {
         const emoji = statusEmoji[task.status] || "❓";

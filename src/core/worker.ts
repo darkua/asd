@@ -148,7 +148,7 @@ export class Worker {
     }
 
     const stats = this.store.getStats();
-    logger.info(`Stats: ${stats.done} done, ${stats.failed} failed, ${stats.processing} processing`);
+    logger.info(`Stats: ${stats.review} review, ${stats.done} done, ${stats.failed} failed, ${stats.processing} processing`);
   }
 
   private async handleRawFeedback(raw: RawFeedback): Promise<void> {

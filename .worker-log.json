@@ -451,3 +451,344 @@
 {"timestamp":"2026-03-23T23:09:52.877Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
 {"timestamp":"2026-03-23T23:09:53.270Z","level":"info","message":"Found 0 AI-GEN task(s)"}
 {"timestamp":"2026-03-23T23:09:53.271Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:18:45.080Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:18:54.446Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:18:54.448Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:18:54.494Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:18:54.877Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:18:55.189Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:18:55.747Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:18:55.748Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:18:55.751Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:18:55.802Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:18:56.156Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:18:56.156Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:18:56.431Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:18:56.432Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:18:56.433Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:19:04.182Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:19:04.182Z","level":"debug","message":"app.message() fired: ts=1774307943.577339, thread_ts=1774305283.869249"}
+{"timestamp":"2026-03-23T23:19:04.182Z","level":"debug","message":"Slack message received in thread 1774305283.869249: \"status\""}
+{"timestamp":"2026-03-23T23:19:04.182Z","level":"info","message":"Feedback received for MP-812: \"status\""}
+{"timestamp":"2026-03-23T23:19:04.183Z","level":"info","message":"Feedback received for MP-812: \"status\"","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:04.780Z","level":"warn","message":"No transition to \"In progress\" available for MP-812","available":["New","Rejected","Fixes after CR needed","Ready for QA"]}
+{"timestamp":"2026-03-23T23:19:04.781Z","level":"info","message":"Starting Claude Code with feedback (round 2, mode: fix)","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:04.781Z","level":"info","message":"Feedback prompt:\n## Task: MP-812\n**Summary:** [AI-GEN] Mowafaqa Portal - Display App Version in the footer\n**Type:** Zadanie | **Priority:** Medium\n\n**Description:**\nAdd a small, non-intrusive display of the application version number in Mowafaqa Portal following the same rules as introduced in mowafaqa-buyer-portal application to help QA, support, and developers quickly identify the deployed build.\n\n\nThe version number should appear in the bottom section of the page (e.g., footer) and automatically reflect the value from the app’s configuration or build metadata. In addition to version there should be disclaimer at the beginning: \n© Mowafaqa 2026. All rights reserved. v0.33.3 Acceptance Criteria: Version number is visible in \nMowafaqa Portal and consists of: © Mowafaqa 2026. All rights reserved\n. \n<version> Value dynamically retrieved from the build configuration (\npackage.json\n or environment variable). Confirmed visible in all environments (DEV, STAGING, PROD). Verified during each release that the version number matches the deployed build.\n\n## Instructions\n1. Read and understand the task above thoroughly.\n2. Read CLAUDE.md for project conventions and architecture rules.\n3. Explore the codebase to understand the relevant areas.\n4. Implement the changes described in the task.\n5. Write or update tests if applicable.\n6. Run existing tests to verify nothing is broken: `npm test` or the project's test command.\n7. Commit all changes with a conventional commit message: `feat(${task.key}): <concise summary>`.\n8. Push the branch to origin.\n9. Create a **draft** pull request targeting `develop` with:\n   - Title: `MP-812: [AI-GEN] Mowafaqa Portal - Display App Version in the footer`\n   - Body: summary of changes + link to JIRA ticket: https://altarise.atlassian.net/browse/MP-812\n\n## Output\nAfter completing the PR, output EXACTLY this line:\n`PR_URL: <the full GitHub PR URL>`\n\n## Human Feedback (round 2 of 3)\nstatus\n\n## Instructions\nReview the existing implementation on this branch.\nApply the feedback above. Keep existing work and make targeted changes.\nPush changes to origin and update the existing PR.\n\n## Output\nAfter pushing, output EXACTLY this line:\n`PR_URL: <the full GitHub PR URL>`","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:14.770Z","level":"info","message":"[thinking] The user wants a status update on the current implementation. Let me check what's been done on this branch and the PR status.","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:15.332Z","level":"info","message":"[response] Let me check the current state of the branch and PR.","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:16.242Z","level":"info","message":"[tool_use] Bash: {\"command\":\"git log --oneline -5\",\"description\":\"Check recent commits on branch\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:17.426Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr list --head feat/mp-812 --json number,url,state,title 2>/dev/null || echo \\\"No PR found\\\"\",\"description\":\"Check existing PR\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:21.778Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr list --head feat/mp-812 --json number,url,state,title\",\"description\":\"Check existing PR\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:25.276Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr list --head feat/mp-812 --json number,url,state,title\",\"description\":\"List PRs for this branch\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:29.550Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr list --head feat/mp-812\",\"description\":\"List PRs for this branch\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:33.436Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr list --head feat/mp-812 --json number,url,state,title\",\"description\":\"Check if PR exists for feat/mp-812\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:37.045Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr view --json number,url,state,title 2>/dev/null; echo \\\"exit: $?\\\"\",\"description\":\"View current PR for this branch\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:42.016Z","level":"info","message":"[tool_use] Bash: {\"command\":\"gh pr view --json number,url,state,title\",\"description\":\"View current PR\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:46.513Z","level":"info","message":"[response] The feedback is just \"status\" — the user wants to know the current state. Let me review what's implemented.","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:47.129Z","level":"info","message":"[tool_use] Bash: {\"command\":\"git diff main..HEAD --stat\",\"description\":\"Show files changed vs main\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:51.059Z","level":"info","message":"[response] That's the full diff against main which includes lots of unrelated files. Let me check only the MP-812 commits.","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:51.342Z","level":"info","message":"[tool_use] Bash: {\"command\":\"git diff c037f453..HEAD --stat\",\"description\":\"Show only MP-812 changes\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:19:57.516Z","level":"info","message":"[tool_use] Bash: {\"command\":\"git diff c037f453..HEAD\",\"description\":\"Show full diff for MP-812 changes\"}","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:20:10.101Z","level":"info","message":"[response] Here's the status of MP-812:\n\n**Branch:** `feat/mp-812`\n**PR:** [#518](https://github.com/altarise/mowafaqa-frontend/pull/518) (OPEN)\n\n**Commits (2):**\n1. `feat(apps:mowafaqa): MP-812 display app version in footer` — Added `CommonAppFooter` to `AppLayout.tsx`, added footer translation keys (`copyrights`, `privacyPolicy`, `termsAndConditions`, `consumerProtection`) and footer links to both `en.json` and `ar.json`\n2. `fix(apps:mowafaqa): MP-812 translate \"All rights reserved\" to Arabic in ar.json` — Changed buyer-portal's Arabic footer from English \"All rights reserved\" to Arabic \"جميع الحقوق محفوظة\"\n\n**Changes summary:**\n- `AppLayout.tsx`: Imports and renders `CommonAppFooter` (reuses existing shared component from `@workspace/common-features`)\n- `en.json` / `ar.json`: Added `common.footer.*` translation keys and `accountActivation.links.*` (privacy/terms/consumer protection PDFs)\n- Buyer-portal `ar.json`: Arabic translation fix for footer copyright text\n\n**What's working:** The footer displays `© Mowafaqa 2026. All rights reserved. v{version}` with the version dynamically read from config, matching the buyer-portal pattern. Both English and Arabic translations are in place.\n\nPR_URL: https://github.com/altarise/mowafaqa-frontend/pull/518","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:20:10.209Z","level":"info","message":"[result] stop_reason=end_turn, turns=12, cost=$0.33","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:20:10.423Z","level":"info","message":"Claude Code exited with code 0 in 65.6s (16 turns)","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:20:11.029Z","level":"info","message":"Feedback applied, PR: https://github.com/altarise/mowafaqa-frontend/pull/518","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:20:11.381Z","level":"warn","message":"No transition to \"Ready for Code review\" available for MP-812","available":["New","Rejected","Fixes after CR needed","Ready for QA"]}
+{"timestamp":"2026-03-23T23:21:25.568Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:21:25.570Z","level":"debug","message":"app.message() fired: ts=1774308084.315509, thread_ts=none"}
+{"timestamp":"2026-03-23T23:21:50.319Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:21:54.924Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:21:54.926Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:21:54.966Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:21:55.341Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:21:55.572Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:21:55.997Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:21:55.997Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:21:55.999Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:21:56.048Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:21:56.239Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:21:56.240Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:21:56.446Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:21:56.446Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:21:56.446Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:22:01.403Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:22:01.403Z","level":"debug","message":"app.message() fired: ts=1774308120.867249, thread_ts=1774305283.869249"}
+{"timestamp":"2026-03-23T23:22:01.403Z","level":"debug","message":"Slack message received in thread 1774305283.869249: \"status\""}
+{"timestamp":"2026-03-23T23:22:01.403Z","level":"info","message":"Feedback received for MP-812: \"status\""}
+{"timestamp":"2026-03-23T23:22:01.404Z","level":"info","message":"Feedback received for MP-812: \"status\"","jiraKey":"MP-812"}
+{"timestamp":"2026-03-23T23:28:13.044Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:28:18.775Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:28:18.776Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:28:18.776Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:28:18.776Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:28:18.776Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:28:18.776Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:28:18.777Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:28:18.777Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:28:18.816Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:28:19.209Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:28:19.442Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:28:19.866Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:28:19.867Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:28:19.870Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:28:19.911Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:28:20.110Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:28:20.112Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:28:20.503Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:28:20.503Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:28:20.504Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:28:30.734Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:28:30.736Z","level":"debug","message":"app.message() fired: ts=1774308509.659079, thread_ts=1774305283.869249"}
+{"timestamp":"2026-03-23T23:28:30.737Z","level":"debug","message":"Ignoring thread text message (use buttons): \"status\""}
+{"timestamp":"2026-03-23T23:29:58.631Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:30:07.220Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:30:07.221Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:30:07.221Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:30:07.221Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:30:07.222Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:30:07.222Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:30:07.222Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:30:07.222Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:30:07.265Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:30:07.658Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:30:07.922Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:30:08.353Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:30:08.354Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:30:08.355Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:30:08.395Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:30:08.722Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:30:08.724Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:30:09.078Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:30:09.079Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:30:09.079Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:30:25.308Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:30:25.310Z","level":"debug","message":"app.message() fired: ts=1774308624.582899, thread_ts=1774305283.869249"}
+{"timestamp":"2026-03-23T23:30:40.576Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:30:40.577Z","level":"debug","message":"app.message() fired: ts=1774308639.186789, thread_ts=none"}
+{"timestamp":"2026-03-23T23:30:54.480Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:30:54.482Z","level":"debug","message":"app.message() fired: ts=1774308653.513689, thread_ts=none"}
+{"timestamp":"2026-03-23T23:34:32.385Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:34:37.520Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:34:37.520Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:34:37.520Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:34:37.521Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:34:37.521Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:34:37.521Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:34:37.521Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:34:37.521Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:34:37.567Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:34:38.067Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:34:38.401Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:34:38.937Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:34:38.938Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:34:38.941Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:34:38.989Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:34:39.286Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:34:39.288Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:34:39.661Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:34:39.662Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:34:39.662Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:34:48.476Z","level":"debug","message":"Slack event received: type=message, subtype=none"}
+{"timestamp":"2026-03-23T23:34:48.478Z","level":"debug","message":"app.message() fired: ts=1774308886.875689, thread_ts=none"}
+{"timestamp":"2026-03-23T23:36:16.482Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:36:16.787Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:36:16.788Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:36:16.830Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:36:17.203Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:36:17.521Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:36:18.037Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:36:18.038Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:36:18.041Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:36:18.076Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:36:18.364Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:36:18.364Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:36:18.654Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:36:18.654Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:36:18.655Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:36:28.726Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:36:28.979Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:36:28.980Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:36:28.980Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:36:28.980Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:36:28.981Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:36:28.981Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:36:28.981Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:36:28.981Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:36:29.028Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:36:29.609Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:36:29.936Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:36:30.657Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:36:30.658Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:36:30.660Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:36:30.709Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:36:31.005Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:36:31.007Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:36:31.288Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:36:31.289Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:36:31.289Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:36:38.095Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:36:38.359Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:36:38.360Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:36:38.361Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:36:38.361Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:36:38.361Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:36:38.361Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:36:38.361Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:36:38.361Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:36:38.418Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:36:38.766Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:36:39.080Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:36:39.601Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:36:39.602Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:36:39.604Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:36:39.644Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:36:39.844Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:36:39.844Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:36:40.131Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:36:40.131Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:36:40.131Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:36:48.375Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:36:48.630Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:36:48.631Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:36:48.675Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:36:49.220Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:36:49.551Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:36:50.059Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:36:50.060Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:36:50.061Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:36:50.098Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:36:50.449Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:36:50.450Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:36:50.647Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:36:50.648Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:36:50.648Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:37:04.622Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:37:04.900Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:37:04.901Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:37:04.901Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:37:04.901Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:37:04.901Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:37:04.901Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:37:04.902Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:37:04.902Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:37:04.946Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:37:05.339Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:37:05.663Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:37:06.185Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:37:06.186Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:37:06.189Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:37:06.239Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:37:06.546Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:37:06.548Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:37:06.861Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:37:06.862Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:37:06.862Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:37:14.548Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:37:14.860Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:37:14.861Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:37:14.901Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:37:15.293Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:37:15.545Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:37:16.097Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:37:16.098Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:37:16.101Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:37:16.149Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:37:16.539Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:37:16.540Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:37:16.702Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:37:16.702Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:37:16.703Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:37:24.209Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:37:24.485Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:37:24.487Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:37:24.487Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:37:24.487Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:37:24.487Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:37:24.488Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:37:24.488Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:37:24.488Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:37:24.555Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:37:24.947Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:37:25.179Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:37:25.688Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:37:25.688Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:37:25.689Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:37:25.712Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:37:25.909Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:37:25.910Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:37:26.173Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:37:26.174Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:37:26.174Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:37:33.728Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:37:33.977Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:37:33.978Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:37:34.033Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:37:34.346Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:37:34.669Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:37:35.185Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:37:35.186Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:37:35.189Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:37:35.232Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:37:35.582Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:37:35.584Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:37:35.771Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:37:35.771Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:37:35.772Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:37:45.663Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-23T23:37:46.006Z","level":"info","message":"╔══════════════════════════════════════╗"}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"║   JIRA AI Worker · Claude Code MAX   ║"}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"╚══════════════════════════════════════╝"}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"Project: MP"}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"Trigger: label \"AI-GEN\""}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"Repo: /Users/maciejsiara/Desktop/MaciejSiara/Mowafaqa/mowafaqa-frontend"}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"Poll interval: 15 min"}
+{"timestamp":"2026-03-23T23:37:46.007Z","level":"info","message":"Max turns: 100"}
+{"timestamp":"2026-03-23T23:37:46.048Z","level":"info","message":"Claude Code: 2.1.81 (Claude Code)"}
+{"timestamp":"2026-03-23T23:37:46.415Z","level":"info","message":"GitHub CLI: authenticated"}
+{"timestamp":"2026-03-23T23:37:46.733Z","level":"info","message":"Slack bot connected as user U0AN8CL5SJE"}
+{"timestamp":"2026-03-23T23:37:47.262Z","level":"info","message":"Slack Bot started in Socket Mode"}
+{"timestamp":"2026-03-23T23:37:47.263Z","level":"info","message":"NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)"}
+{"timestamp":"2026-03-23T23:37:47.266Z","level":"info","message":"Health check endpoint: http://localhost:9090/health"}
+{"timestamp":"2026-03-23T23:37:47.308Z","level":"debug","message":"Repo ready"}
+{"timestamp":"2026-03-23T23:37:47.596Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-23T23:37:47.597Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND summary ~ \"[AI-GEN]\" AND status = \"To Do\""}
+{"timestamp":"2026-03-23T23:37:47.865Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-23T23:37:47.865Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-23T23:37:47.866Z","level":"info","message":"Polling loop active. Press Ctrl+C to stop."}
+{"timestamp":"2026-03-23T23:37:52.353Z","level":"info","message":"Shutting down..."}
