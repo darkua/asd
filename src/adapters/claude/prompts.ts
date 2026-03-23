@@ -62,6 +62,7 @@ export function buildSystemPrompt(): string {
     "If you encounter a blocker, commit what you have and note the blocker in the PR description.",
     `The git branch is already set up. You are working in the correct directory.`,
     `Push to origin when done. Create the PR using the gh CLI or git commands.`,
+    "Never read .env, .env.*, credentials, or any file containing secrets.",
   ].join(" ");
 }
 
@@ -119,5 +120,6 @@ export function buildFeedbackSystemPrompt(mode: "fix" | "redo"): string {
       ? "You are working on an existing branch with prior implementation. Review what exists and make targeted changes."
       : "You are starting fresh. The branch is clean.",
     "Push to origin when done. Create or update the PR using the gh CLI.",
+    "Never read .env, .env.*, credentials, or any file containing secrets.",
   ].join(" ");
 }

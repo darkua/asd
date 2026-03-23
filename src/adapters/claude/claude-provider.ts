@@ -109,6 +109,28 @@ export class ClaudeProvider implements AIProvider {
     log.info(`Process group ${pid} terminated`);
   }
 
+  private buildSafeEnv(): Record<string, string | undefined> {
+    const ALLOWED_ENV_KEYS = [
+      "HOME", "PATH", "SHELL", "USER", "LOGNAME",
+      "LANG", "LC_ALL", "LC_CTYPE",
+      "TERM", "TERM_PROGRAM",
+      "NODE_ENV", "NODE_OPTIONS",
+      "GITHUB_TOKEN", "GH_TOKEN",
+      "SSH_AUTH_SOCK", "SSH_AGENT_PID",
+      "TMPDIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
+    ];
+
+    const safeEnv: Record<string, string | undefined> = {};
+    for (const key of ALLOWED_ENV_KEYS) {
+      if (process.env[key]) {
+        safeEnv[key] = process.env[key];
+      }
+    }
+    // Explicitly ensure no API key billing
+    safeEnv.ANTHROPIC_API_KEY = undefined;
+    return safeEnv;
+  }
+
   private spawnClaude(
     args: string[],
     workDir: string,
@@ -127,10 +149,7 @@ export class ClaudeProvider implements AIProvider {
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
         timeout: this.timeoutMs,
-        env: {
-          ...process.env,
-          ANTHROPIC_API_KEY: undefined,
-        },
+        env: this.buildSafeEnv(),
       });
 
       if (child.pid) {
