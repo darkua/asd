@@ -92,13 +92,13 @@ export class SlackNotifier implements Notifier {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*✅ ${task.key}: ${task.summary} — Done*\nPriority: ${task.priority} · Type: ${task.issueType}`,
+              text: `*👀 ${task.key}: ${task.summary} — Under Review*\nPriority: ${task.priority} · Type: ${task.issueType}`,
             },
           },
-        ], `${task.key}: ${task.summary} — Done`);
+        ], `${task.key}: ${task.summary} — Under Review`);
 
         // Post action buttons
-        await this.postActionButtons(thread, task.key, "done");
+        await this.postActionButtons(thread, task.key, "review");
 
         return thread;
       } catch (err) {
@@ -159,7 +159,7 @@ export class SlackNotifier implements Notifier {
     }
   }
 
-  private async postActionButtons(thread: ThreadRef, taskKey: string, status: "done" | "failed"): Promise<void> {
+  private async postActionButtons(thread: ThreadRef, taskKey: string, status: "review" | "failed"): Promise<void> {
     const buttons: any[] = [
       { type: "button", text: { type: "plain_text", text: "🔧 Fix" }, action_id: `task_fix`, value: taskKey, style: "primary" },
       { type: "button", text: { type: "plain_text", text: "🔄 Redo" }, action_id: `task_redo`, value: taskKey },

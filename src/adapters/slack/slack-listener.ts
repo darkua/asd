@@ -43,7 +43,16 @@ export class SlackListener implements FeedbackListener {
 
         const channel = (body as any).channel?.id;
         const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
+        const messageTs = (body as any).message?.ts;
         const feedback = cmd === "task_cancel" ? "cancel" : "retry";
+
+        // Remove buttons from the clicked message
+        if (channel && messageTs) {
+          const label = cmd === "task_cancel" ? "Cancelling..." : "Retrying...";
+          await this.client.updateMessage(channel, messageTs, [
+            { type: "section", text: { type: "mrkdwn", text: `_${label}_` } },
+          ], label);
+        }
 
         const replyFn = async (text: string) => {
           if (channel && threadTs) await this.client.replyInThread(channel, threadTs, text);
@@ -162,6 +171,16 @@ export class SlackListener implements FeedbackListener {
         const feedback = view.state?.values?.feedback_block?.feedback_input?.value?.trim();
 
         if (!taskKey || !feedback || !this.feedbackHandler) return;
+
+        // Replace buttons with Cancel-only while processing
+        if (channel && threadTs) {
+          await this.client.replyInThreadWithBlocks(channel, threadTs, [
+            { type: "section", text: { type: "mrkdwn", text: `🔄 _Processing ${mode} feedback..._` } } as any,
+            { type: "actions", elements: [
+              { type: "button", text: { type: "plain_text", text: "🛑 Cancel" }, action_id: "task_cancel", value: taskKey, style: "danger" },
+            ] } as any,
+          ], "Processing...");
+        }
 
         const replyFn = async (text: string) => {
           if (channel && threadTs) await this.client.replyInThread(channel, threadTs, text);
