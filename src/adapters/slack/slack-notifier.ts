@@ -97,6 +97,9 @@ export class SlackNotifier implements Notifier {
           },
         ], `${task.key}: ${task.summary} — Done`);
 
+        // Post action buttons
+        await this.postActionButtons(thread, task.key, "done");
+
         return thread;
       } catch (err) {
         log.warn(`Slack Bolt completion notification failed, falling back to webhook: ${err}`);
@@ -133,6 +136,9 @@ export class SlackNotifier implements Notifier {
           },
         ], `${task.key}: ${task.summary} — Failed`);
 
+        // Post action buttons
+        await this.postActionButtons(thread, task.key, "failed");
+
         return thread;
       } catch (err) {
         log.warn(`Slack Bolt failure notification failed, falling back to webhook: ${err}`);
@@ -150,6 +156,32 @@ export class SlackNotifier implements Notifier {
       await this.client.replyInThread(thread.channel, thread.id, text);
     } catch (err) {
       log.warn(`Slack thread reply failed: ${err}`);
+    }
+  }
+
+  private async postActionButtons(thread: ThreadRef, taskKey: string, status: "done" | "failed"): Promise<void> {
+    const buttons: any[] = [
+      { type: "button", text: { type: "plain_text", text: "🔧 Fix" }, action_id: `task_fix`, value: taskKey, style: "primary" },
+      { type: "button", text: { type: "plain_text", text: "🔄 Redo" }, action_id: `task_redo`, value: taskKey },
+      { type: "button", text: { type: "plain_text", text: "📊 Status" }, action_id: `task_status`, value: taskKey },
+    ];
+
+    if (status === "failed") {
+      buttons.push(
+        { type: "button", text: { type: "plain_text", text: "🔁 Retry" }, action_id: `task_retry`, value: taskKey },
+      );
+    }
+
+    buttons.push(
+      { type: "button", text: { type: "plain_text", text: "🛑 Cancel" }, action_id: `task_cancel`, value: taskKey, style: "danger" },
+    );
+
+    try {
+      await this.client.replyInThreadWithBlocks(thread.channel, thread.id, [
+        { type: "actions", elements: buttons } as any,
+      ], "Task actions");
+    } catch (err) {
+      log.warn(`Failed to post action buttons: ${err}`);
     }
   }
 

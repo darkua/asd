@@ -136,6 +136,45 @@ export class SlackClient {
     }
   }
 
+  onAction(actionId: string, handler: (payload: any) => Promise<void>): void {
+    if (!this.app) return;
+    this.app.action(actionId, async ({ ack, body, action }) => {
+      await ack();
+      await handler({ body, action });
+    });
+  }
+
+  onViewSubmission(callbackId: string, handler: (payload: any) => Promise<void>): void {
+    if (!this.app) return;
+    this.app.view(callbackId, async ({ ack, body, view }) => {
+      await ack();
+      await handler({ body, view });
+    });
+  }
+
+  async openModal(triggerId: string, view: Record<string, unknown>): Promise<void> {
+    if (!this.app) return;
+    await this.app.client.views.open({
+      trigger_id: triggerId,
+      view: view as any,
+    });
+  }
+
+  async replyInThreadWithBlocks(
+    channel: string,
+    threadTs: string,
+    blocks: SlackBlock[],
+    text?: string,
+  ): Promise<void> {
+    if (!this.app) return;
+    await this.app.client.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      blocks: blocks as any,
+      text: text || "",
+    });
+  }
+
   async sendWebhook(payload: Record<string, unknown>): Promise<void> {
     if (!this.webhookUrl) return;
 

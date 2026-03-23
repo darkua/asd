@@ -26,10 +26,87 @@ export class SlackListener implements FeedbackListener {
 
   async start(): Promise<void> {
     this.client.onMessage((message) => this.handleMessage(message));
+    this.registerActions();
   }
 
   async stop(): Promise<void> {
     // No-op — SlackClient handles Bolt shutdown
+  }
+
+  private registerActions(): void {
+    // Direct action buttons (no modal needed)
+    for (const cmd of ["task_cancel", "task_retry", "task_status"] as const) {
+      this.client.onAction(cmd, async ({ body }) => {
+        const action = (body as any).actions?.[0];
+        const taskKey = action?.value;
+        if (!taskKey || !this.feedbackHandler) return;
+
+        const channel = (body as any).channel?.id;
+        const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
+        const commandMap = { task_cancel: "cancel", task_retry: "retry", task_status: "status" } as const;
+        const feedback = commandMap[cmd];
+
+        const replyFn = async (text: string) => {
+          if (channel && threadTs) await this.client.replyInThread(channel, threadTs, text);
+        };
+
+        await this.feedbackHandler({ taskKey, feedback, mode: "fix", replyFn });
+      });
+    }
+
+    // Fix/Redo buttons — open modal for user to type feedback
+    for (const mode of ["fix", "redo"] as const) {
+      this.client.onAction(`task_${mode}`, async ({ body }) => {
+        const action = (body as any).actions?.[0];
+        const taskKey = action?.value;
+        const triggerId = (body as any).trigger_id;
+        if (!taskKey || !triggerId) return;
+
+        const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
+        const channel = (body as any).channel?.id;
+
+        await this.client.openModal(triggerId, {
+          type: "modal",
+          callback_id: `feedback_${mode}`,
+          private_metadata: JSON.stringify({ taskKey, channel, threadTs }),
+          title: { type: "plain_text", text: mode === "fix" ? "Fix Implementation" : "Redo Implementation" },
+          submit: { type: "plain_text", text: "Send" },
+          close: { type: "plain_text", text: "Cancel" },
+          blocks: [
+            {
+              type: "input",
+              block_id: "feedback_block",
+              label: { type: "plain_text", text: mode === "fix" ? "What should be changed?" : "How should it be redone?" },
+              element: {
+                type: "plain_text_input",
+                action_id: "feedback_input",
+                multiline: true,
+                placeholder: { type: "plain_text", text: mode === "fix" ? "e.g. Change button color to blue" : "e.g. Use a completely different approach for the API" },
+              },
+            },
+          ],
+        });
+      });
+    }
+
+    // Modal submissions
+    for (const mode of ["fix", "redo"] as const) {
+      this.client.onViewSubmission(`feedback_${mode}`, async ({ body, view }) => {
+        const meta = JSON.parse(view.private_metadata || "{}");
+        const taskKey = meta.taskKey;
+        const channel = meta.channel;
+        const threadTs = meta.threadTs;
+        const feedback = view.state?.values?.feedback_block?.feedback_input?.value?.trim();
+
+        if (!taskKey || !feedback || !this.feedbackHandler) return;
+
+        const replyFn = async (text: string) => {
+          if (channel && threadTs) await this.client.replyInThread(channel, threadTs, text);
+        };
+
+        await this.feedbackHandler({ taskKey, feedback, mode, replyFn });
+      });
+    }
   }
 
   private async handleMessage(message: any): Promise<void> {
