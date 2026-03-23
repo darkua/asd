@@ -106,6 +106,22 @@ export class GitVCS implements VCS {
     }
   }
 
+  async validatePrUrl(url: string): Promise<boolean> {
+    const log = createLogger();
+    try {
+      execSync(`gh pr view "${url}" --json state`, {
+        cwd: this.config.path,
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 15_000,
+      });
+      return true;
+    } catch {
+      log.warn(`PR validation failed for ${url}`);
+      return false;
+    }
+  }
+
   ensureReady(): void {
     const log = createLogger();
     try {

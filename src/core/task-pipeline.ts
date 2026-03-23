@@ -62,6 +62,18 @@ export class TaskPipeline {
 
       // Step 5: Handle result
       if (result.success && result.prUrl) {
+        // Validate PR actually exists
+        const prValid = await this.vcs.validatePrUrl(result.prUrl);
+        if (!prValid) {
+          const errorMsg = `AI claimed PR at ${result.prUrl} but it does not exist`;
+          log.error(errorMsg);
+          this.store.markFailed(task.key, errorMsg);
+          await this.taskSource.addComment(task.key, `AI implementation failed: ${errorMsg}`);
+          const failThread = await this.notifier.notifyTaskFailed(task, errorMsg, thread);
+          if (failThread && !thread) this.store.setThreadRef(task.key, failThread);
+          return;
+        }
+
         log.info(`PR created: ${result.prUrl}`);
 
         await this.taskSource.transitionToReview(task.key);
@@ -161,6 +173,19 @@ export class TaskPipeline {
       });
 
       if (result.success && result.prUrl) {
+        // Validate PR actually exists
+        const prValid = await this.vcs.validatePrUrl(result.prUrl);
+        if (!prValid) {
+          const errorMsg = `AI claimed PR at ${result.prUrl} but it does not exist`;
+          log.error(errorMsg);
+          this.store.markFailed(key, errorMsg);
+          await this.taskSource.addComment(key, `AI implementation failed: ${errorMsg}`);
+          if (thread) {
+            await this.notifier.replyInThread(thread, `Feedback processing error: ${errorMsg}`);
+          }
+          return;
+        }
+
         log.info(`Feedback applied, PR: ${result.prUrl}`);
         await this.taskSource.transitionToReview(key);
         await this.taskSource.addComment(

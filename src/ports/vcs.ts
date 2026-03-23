@@ -6,4 +6,5 @@ export interface VCS {
   createWorktree(key: string): string;
   removeWorktree(key: string): void;
   closePR(key: string): void;
+  validatePrUrl(url: string): Promise<boolean>;
 }
