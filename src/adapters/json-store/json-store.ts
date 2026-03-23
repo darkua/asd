@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, renameSync } from "node:fs";
 import type { Store } from "../../ports/store.js";
 import type { TaskInfo, ThreadRef, StoredTask } from "../../ports/types.js";
 
@@ -67,7 +67,9 @@ export class JsonStore implements Store {
   }
 
   private saveState(state: State): void {
-    writeFileSync(this.filePath, JSON.stringify(state, null, 2));
+    const tmpPath = this.filePath + ".tmp";
+    writeFileSync(tmpPath, JSON.stringify(state, null, 2));
+    renameSync(tmpPath, this.filePath);
   }
 
   getTask(key: string): StoredTask | undefined {
