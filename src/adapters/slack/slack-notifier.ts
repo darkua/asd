@@ -83,7 +83,7 @@ export class SlackNotifier implements Notifier {
         await this.client.replyInThread(
           thread.channel,
           thread.id,
-          `✅ PR created: <${result.prUrl}|View Pull Request>\nDuration: ${(result.durationMs / 1000).toFixed(0)}s`,
+          `✅ PR created: <${result.prUrl}|View Pull Request>\nDuration: ${(result.durationMs / 1000).toFixed(0)}s${result.costUsd ? ` · Cost: $${result.costUsd.toFixed(2)}` : ""}`,
         );
 
         // Update main message

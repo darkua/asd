@@ -1,5 +1,25 @@
-import { appendFileSync } from "node:fs";
+import { appendFileSync, statSync, renameSync, existsSync } from "node:fs";
 import { config } from "./config/config.js";
+
+function rotateIfNeeded(logFile: string): void {
+  try {
+    const stats = statSync(logFile);
+    if (stats.size > 10 * 1024 * 1024) { // 10MB
+      // Shift existing rotations
+      for (let i = 2; i >= 1; i--) {
+        const from = i === 1 ? logFile : `${logFile}.${i - 1}`;
+        const to = `${logFile}.${i}`;
+        if (existsSync(from)) {
+          try { renameSync(from, to); } catch { /* ignore */ }
+        }
+      }
+      // Rotate current
+      try { renameSync(logFile, `${logFile}.1`); } catch { /* ignore */ }
+    }
+  } catch {
+    // File doesn't exist yet, no rotation needed
+  }
+}
 
 type LogLevel = "info" | "warn" | "error" | "debug";
 
@@ -28,6 +48,7 @@ function write(entry: LogEntry): void {
   );
 
   if (config.paths.logFile) {
+    rotateIfNeeded(config.paths.logFile);
     appendFileSync(config.paths.logFile, line + "\n");
   }
 }

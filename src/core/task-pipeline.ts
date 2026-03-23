@@ -199,6 +199,9 @@ export class TaskPipeline {
         round,
         maxRounds,
       }, feedbackProgressCallback);
+      if (result.costUsd != null) {
+        this.store.setCost(key, result.costUsd);
+      }
 
       if (result.success && result.prUrl) {
         // Validate PR actually exists
