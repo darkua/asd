@@ -67,6 +67,10 @@ export class GitVCS implements VCS {
     );
 
     log.info(`Created worktree at ${wPath} on branch ${branch}`);
+
+    // Install dependencies based on detected package manager
+    this.installDependencies(wPath, log);
+
     return wPath;
   }
 
@@ -111,5 +115,38 @@ export class GitVCS implements VCS {
     }
     this.git("worktree prune");
     log.debug("Repo ready");
+  }
+
+  private installDependencies(workDir: string, log: ReturnType<typeof createLogger>): void {
+    // Detect package manager by lock file
+    let cmd: string;
+    if (existsSync(join(workDir, "pnpm-lock.yaml"))) {
+      cmd = "pnpm install --frozen-lockfile";
+    } else if (existsSync(join(workDir, "yarn.lock"))) {
+      cmd = "yarn install --frozen-lockfile";
+    } else if (existsSync(join(workDir, "bun.lockb")) || existsSync(join(workDir, "bun.lock"))) {
+      cmd = "bun install --frozen-lockfile";
+    } else if (existsSync(join(workDir, "package-lock.json"))) {
+      cmd = "npm ci";
+    } else if (existsSync(join(workDir, "package.json"))) {
+      cmd = "npm install";
+    } else {
+      log.debug("No package.json found, skipping dependency install");
+      return;
+    }
+
+    log.info(`Installing dependencies: ${cmd}`);
+    try {
+      execSync(cmd, {
+        cwd: workDir,
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 300_000, // 5 min
+      });
+      log.info("Dependencies installed");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`Dependency install failed: ${msg.slice(0, 200)}`);
+    }
   }
 }
