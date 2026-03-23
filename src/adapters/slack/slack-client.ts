@@ -37,6 +37,10 @@ export class SlackClient {
     return this.app !== null;
   }
 
+  get botId(): string | null {
+    return this.botUserId;
+  }
+
   async start(): Promise<void> {
     if (!this.config.botToken || !this.config.appToken) {
       log.info("Slack feedback disabled — bot tokens not configured");

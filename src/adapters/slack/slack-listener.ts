@@ -35,7 +35,7 @@ export class SlackListener implements FeedbackListener {
 
   private registerActions(): void {
     // Direct action buttons (no modal needed)
-    for (const cmd of ["task_cancel", "task_retry", "task_status"] as const) {
+    for (const cmd of ["task_cancel", "task_retry"] as const) {
       this.client.onAction(cmd, async ({ body }) => {
         const action = (body as any).actions?.[0];
         const taskKey = action?.value;
@@ -43,8 +43,7 @@ export class SlackListener implements FeedbackListener {
 
         const channel = (body as any).channel?.id;
         const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
-        const commandMap = { task_cancel: "cancel", task_retry: "retry", task_status: "status" } as const;
-        const feedback = commandMap[cmd];
+        const feedback = cmd === "task_cancel" ? "cancel" : "retry";
 
         const replyFn = async (text: string) => {
           if (channel && threadTs) await this.client.replyInThread(channel, threadTs, text);
@@ -53,6 +52,42 @@ export class SlackListener implements FeedbackListener {
         await this.feedbackHandler({ taskKey, feedback, mode: "fix", replyFn });
       });
     }
+
+    // Status button — reply with task info + re-post action buttons
+    this.client.onAction("task_status", async ({ body }) => {
+      const action = (body as any).actions?.[0];
+      const taskKey = action?.value;
+      if (!taskKey) return;
+
+      const channel = (body as any).channel?.id;
+      const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
+      if (!channel || !threadTs) return;
+
+      const task = this.store.getTask(taskKey);
+      if (!task) return;
+
+      // Post status info
+      const lines = [
+        `*Task ${taskKey}:* ${task.status}`,
+        `Feedback rounds: ${task.feedbackRound}`,
+        task.prUrl ? `PR: <${task.prUrl}|View>` : "",
+        task.error ? `Error: ${task.error.slice(0, 100)}` : "",
+      ].filter(Boolean);
+      await this.client.replyInThread(channel, threadTs, lines.join("\n"));
+
+      // Re-post action buttons
+      const buttons: any[] = [
+        { type: "button", text: { type: "plain_text", text: "🔧 Fix" }, action_id: "task_fix", value: taskKey, style: "primary" },
+        { type: "button", text: { type: "plain_text", text: "🔄 Redo" }, action_id: "task_redo", value: taskKey },
+        { type: "button", text: { type: "plain_text", text: "📊 Status" }, action_id: "task_status", value: taskKey },
+      ];
+      if (task.status === "failed") {
+        buttons.push({ type: "button", text: { type: "plain_text", text: "🔁 Retry" }, action_id: "task_retry", value: taskKey });
+      }
+      buttons.push({ type: "button", text: { type: "plain_text", text: "🛑 Cancel" }, action_id: "task_cancel", value: taskKey, style: "danger" });
+
+      await this.client.replyInThreadWithBlocks(channel, threadTs, [{ type: "actions", elements: buttons } as any], "Task actions");
+    });
 
     // Fix/Redo buttons — open modal for user to type feedback
     for (const mode of ["fix", "redo"] as const) {
@@ -113,7 +148,7 @@ export class SlackListener implements FeedbackListener {
     // Filter: bot messages and subtypes (edits, joins, etc.)
     if (message.bot_id || message.subtype) return;
 
-    // Handle non-threaded "status" command
+    // Handle non-threaded "status" command in channel
     if (!message.thread_ts || message.thread_ts === message.ts) {
       const text: string = message.text?.trim().toLowerCase() || "";
       if (text === "status" && this.statusHandler) {
@@ -125,63 +160,48 @@ export class SlackListener implements FeedbackListener {
           `Stats: ${status.stats.done} done, ${status.stats.failed} failed, ${status.stats.processing} processing`,
         ];
         await this.client.replyInThread(message.channel, message.ts, lines.join("\n"));
-        return;
       }
-      return; // not a thread reply and not "status" — ignore
+      return;
     }
 
+    // In threads: only respond to bot mention or "status" — post action buttons
     const text: string = message.text?.trim() || "";
+    const botId = this.client.botId;
+    const isMention = botId ? text.includes(`<@${botId}>`) : false;
+    const isStatus = text.toLowerCase() === "status";
 
-    // Filter: empty text
-    if (!text) return;
+    if (isMention || isStatus) {
+      const task = this.store.getTaskByThread(message.thread_ts);
+      if (!task) return;
 
-    log.debug(`Slack message received in thread ${message.thread_ts}: "${text.slice(0, 100)}"`);
+      const channel = message.channel as string;
+      const threadTs = message.thread_ts as string;
 
-    // Lookup task by thread
-    const task = this.store.getTaskByThread(message.thread_ts);
-    if (!task) {
-      log.debug(`No tracked task for thread ${message.thread_ts}`);
+      // Post status info
+      const lines = [
+        `*Task ${task.key}:* ${task.status}`,
+        `Feedback rounds: ${task.feedbackRound}`,
+        task.prUrl ? `PR: <${task.prUrl}|View>` : "",
+        task.error ? `Error: ${task.error.slice(0, 100)}` : "",
+      ].filter(Boolean);
+      await this.client.replyInThread(channel, threadTs, lines.join("\n"));
+
+      // Post action buttons
+      const buttons: any[] = [
+        { type: "button", text: { type: "plain_text", text: "🔧 Fix" }, action_id: "task_fix", value: task.key, style: "primary" },
+        { type: "button", text: { type: "plain_text", text: "🔄 Redo" }, action_id: "task_redo", value: task.key },
+        { type: "button", text: { type: "plain_text", text: "📊 Status" }, action_id: "task_status", value: task.key },
+      ];
+      if (task.status === "failed") {
+        buttons.push({ type: "button", text: { type: "plain_text", text: "🔁 Retry" }, action_id: "task_retry", value: task.key });
+      }
+      buttons.push({ type: "button", text: { type: "plain_text", text: "🛑 Cancel" }, action_id: "task_cancel", value: task.key, style: "danger" });
+
+      await this.client.replyInThreadWithBlocks(channel, threadTs, [{ type: "actions", elements: buttons } as any], "Task actions");
       return;
     }
 
-    log.info(`Feedback received for ${task.key}: "${text.slice(0, 100)}"`);
-
-    const channel = message.channel as string;
-    const threadTs = message.thread_ts as string;
-
-    const replyFn = async (replyText: string): Promise<void> => {
-      await this.client.replyInThread(channel, threadTs, replyText);
-    };
-
-    // Parse mode from prefix
-    let mode: "fix" | "redo" = "fix";
-    let feedback = text;
-
-    if (text.toLowerCase().startsWith("redo:")) {
-      mode = "redo";
-      feedback = text.slice(5).trim();
-    } else if (text.toLowerCase().startsWith("fix:")) {
-      feedback = text.slice(4).trim();
-    }
-
-    // Filter: empty feedback after prefix strip
-    if (!feedback) {
-      await replyFn("Empty feedback — please describe what to change.");
-      return;
-    }
-
-    if (!this.feedbackHandler) return;
-
-    try {
-      await this.feedbackHandler({
-        taskKey: task.key,
-        feedback,
-        mode,
-        replyFn,
-      });
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      await replyFn(`Feedback processing failed: ${errorMsg}`);
-    }
+    // All other thread text is ignored — use buttons
+    log.debug(`Ignoring thread text (use buttons): "${text.slice(0, 50)}"`);
   }
 }
