@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "worker:once": "tsx src/index.ts --once",
     "worker:reset": "rm -f .worker-state.json && echo 'State cleared'",
     "worker:reset-task": "tsx -e \"const k=process.argv[1];if(!k){console.error('Usage: npm run worker:reset-task -- MP-123');process.exit(1)}const f='.worker-state.json';const fs=await import('fs');if(!fs.existsSync(f)){console.log('No state file');process.exit(0)}const s=JSON.parse(fs.readFileSync(f,'utf-8'));if(s.processed[k]){delete s.processed[k];fs.writeFileSync(f,JSON.stringify(s,null,2));console.log('Removed',k)}else{console.log(k,'not found in state')}\"",
