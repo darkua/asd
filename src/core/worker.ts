@@ -191,6 +191,18 @@ export class Worker {
       return;
     }
 
+    if (lowerFeedback === "status") {
+      const status = this.getStatus();
+      const lines = [
+        `*Task ${key}:* ${task.status}`,
+        `Feedback rounds: ${task.feedbackRound}`,
+        `Processing: ${status.processing.length > 0 ? status.processing.join(", ") : "none"}`,
+        `Queue: ${status.queueSize} pending`,
+      ];
+      await raw.replyFn(lines.join("\n"));
+      return;
+    }
+
     if (lowerFeedback === "reopen") {
       if (!task.feedbackClosed) {
         await raw.replyFn("Feedback is already open for this task.");
