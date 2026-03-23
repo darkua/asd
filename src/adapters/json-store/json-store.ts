@@ -11,6 +11,9 @@ interface InternalTask {
   error?: string;
   threadId?: string;
   threadChannel?: string;
+  // Legacy fields from pre-refactor state files
+  slackThreadTs?: string;
+  slackChannel?: string;
   feedbackRound: number;
   feedbackClosed?: boolean;
   childProcessPid?: number;
@@ -36,8 +39,11 @@ function toStoredTask(t: InternalTask): StoredTask {
     limitReachedAt: t.limitReachedAt,
     taskInfo: t.taskInfo,
   };
-  if (t.threadId !== undefined && t.threadChannel !== undefined) {
-    task.threadRef = { id: t.threadId, channel: t.threadChannel };
+  // Support both new (threadId) and legacy (slackThreadTs) field names
+  const tid = t.threadId ?? t.slackThreadTs;
+  const tch = t.threadChannel ?? t.slackChannel;
+  if (tid !== undefined && tch !== undefined) {
+    task.threadRef = { id: tid, channel: tch };
   }
   return task;
 }
@@ -72,7 +78,9 @@ export class JsonStore implements Store {
 
   getTaskByThread(threadId: string): StoredTask | undefined {
     const state = this.loadState();
-    const task = Object.values(state.processed).find((t) => t.threadId === threadId);
+    const task = Object.values(state.processed).find(
+      (t) => t.threadId === threadId || t.slackThreadTs === threadId,
+    );
     return task ? toStoredTask(task) : undefined;
   }
 
