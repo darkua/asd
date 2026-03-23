@@ -134,13 +134,14 @@ export class SlackListener implements FeedbackListener {
         const triggerId = (body as any).trigger_id;
         if (!taskKey || !triggerId) return;
 
-        const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
+        const messageTs = (body as any).message?.ts;
+        const threadTs = (body as any).message?.thread_ts || messageTs;
         const channel = (body as any).channel?.id;
 
         await this.client.openModal(triggerId, {
           type: "modal",
           callback_id: `feedback_${mode}`,
-          private_metadata: JSON.stringify({ taskKey, channel, threadTs }),
+          private_metadata: JSON.stringify({ taskKey, channel, threadTs, buttonMessageTs: messageTs }),
           title: { type: "plain_text", text: mode === "fix" ? "Fix Implementation" : "Redo Implementation" },
           submit: { type: "plain_text", text: "Send" },
           close: { type: "plain_text", text: "Cancel" },
@@ -168,14 +169,15 @@ export class SlackListener implements FeedbackListener {
         const taskKey = meta.taskKey;
         const channel = meta.channel;
         const threadTs = meta.threadTs;
+        const buttonMessageTs = meta.buttonMessageTs;
         const feedback = view.state?.values?.feedback_block?.feedback_input?.value?.trim();
 
         if (!taskKey || !feedback || !this.feedbackHandler) return;
 
-        // Replace buttons with Cancel-only while processing
-        if (channel && threadTs) {
-          await this.client.replyInThreadWithBlocks(channel, threadTs, [
-            { type: "section", text: { type: "mrkdwn", text: `🔄 _Processing ${mode} feedback..._` } } as any,
+        // Update the original button message to Cancel-only
+        if (channel && buttonMessageTs) {
+          await this.client.updateMessage(channel, buttonMessageTs, [
+            { type: "section", text: { type: "mrkdwn", text: `🔄 _Processing ${mode} feedback..._` } },
             { type: "actions", elements: [
               { type: "button", text: { type: "plain_text", text: "🛑 Cancel" }, action_id: "task_cancel", value: taskKey, style: "danger" },
             ] } as any,
