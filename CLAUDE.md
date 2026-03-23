@@ -2,14 +2,14 @@
 
 ## Project
 
-JIRA AI Worker — polls JIRA for `AI-GEN` tickets, spawns Claude Code CLI to implement them, creates draft PRs, notifies Slack. Uses Claude Code MAX subscription (no API key).
+JIRA AI Worker — polls JIRA for `AI-GEN` tickets, spawns Claude Code CLI to implement them, creates draft PRs, notifies Slack with real-time progress. Uses Claude Code MAX subscription (no API key).
 
 ## Architecture
 
 Hexagonal (Ports & Adapters). Three layers:
 
 - **Ports** (`src/ports/`) — interfaces only, no implementation
-- **Adapters** (`src/adapters/`) — implementations: claude, jira, slack, git, json-store
+- **Adapters** (`src/adapters/`) — implementations: claude, jira, slack, git, json-store, health
 - **Core** (`src/core/`) — business logic depending only on ports
 
 **Dependency rule**: Core imports ports. Adapters import ports. Core never imports adapters. Adapters never import each other. Only `src/index.ts` (composition root) imports everything.
@@ -19,10 +19,13 @@ Hexagonal (Ports & Adapters). Three layers:
 | File | Purpose |
 |------|---------|
 | `src/index.ts` | Composition root — wires adapters to core |
-| `src/core/task-pipeline.ts` | Orchestration: processTask + handleFeedback |
-| `src/core/worker.ts` | Lifecycle: poll loop, feedback queue, round limits, shutdown |
-| `src/adapters/claude/claude-provider.ts` | Spawns Claude CLI, streams JSON, logs reasoning |
-| `src/adapters/slack/slack-listener.ts` | Receives Slack thread replies as feedback |
+| `src/core/task-pipeline.ts` | Orchestration: processTask + handleFeedback, PR validation |
+| `src/core/worker.ts` | Lifecycle: poll loop, feedback queue, commands (cancel/retry/reopen/status), crash recovery, worktree cleanup |
+| `src/adapters/claude/claude-provider.ts` | Spawns Claude CLI, streams JSON, logs reasoning, progress callbacks, sanitized env |
+| `src/adapters/claude/prompts.ts` | System prompts + implementation instructions |
+| `src/adapters/slack/slack-listener.ts` | Receives Slack thread replies as feedback + status command |
+| `src/adapters/slack/slack-notifier.ts` | Notifications with cost tracking + progress updates |
+| `src/adapters/health/health-server.ts` | HTTP health check endpoint |
 | `src/config/config.ts` | All env vars, validated at startup |
 
 ## Tech Stack
@@ -40,7 +43,9 @@ Hexagonal (Ports & Adapters). Three layers:
 - **Classes for adapters** — each adapter is a class implementing a port interface
 - **createLogger(jiraKey?)** — use for all logging, pass JIRA key for contextual logs
 - **Config via constructor** — adapters receive config through constructor, never import global config
-- **Port types** — shared types live in `src/ports/types.ts`: `TaskInfo`, `ThreadRef`, `AIResult`, `StoredTask`, etc.
+- **Port types** — shared types live in `src/ports/types.ts`: `TaskInfo`, `ThreadRef`, `AIResult`, `StoredTask`, `ProgressEvent`, `WorkerConfig`, `WorkerStatus`
+- **Atomic state writes** — JsonStore uses write-to-tmp-then-rename for crash safety
+- **Environment sanitization** — Claude child process gets only allowlisted env vars (no secrets)
 
 ## Adding a New Adapter
 
@@ -57,7 +62,23 @@ Hexagonal (Ports & Adapters). Three layers:
 
 **Adding a notification channel**: Create new `Notifier` implementation, wrap with existing in `CompositeNotifier`.
 
-**Modifying feedback flow**: Business logic (round limits, timeouts) is in `src/core/worker.ts`. Transport parsing is in the adapter.
+**Modifying feedback flow**: Business logic (round limits, timeouts, commands) is in `src/core/worker.ts`. Transport parsing is in the adapter.
+
+**Adding a Slack command**: Add case in `Worker.handleRawFeedback()` for thread commands, or in `SlackListener.handleMessage()` for channel commands.
+
+## Slack Commands
+
+Thread commands (reply in task thread):
+- `cancel` / `stop` — kill running task
+- `retry` — reset failed task for reprocessing
+- `reopen` — reopen closed feedback
+- `fix: <feedback>` — apply targeted changes (default mode)
+- `redo: <feedback>` — start fresh implementation
+- `tak` / `yes` — continue after round limit
+- `nie` / `no` — close feedback
+
+Channel command (post in configured channel):
+- `status` — show processing tasks, queue size, stats
 
 ## What NOT to Do
 
@@ -65,3 +86,4 @@ Hexagonal (Ports & Adapters). Three layers:
 - Do not put business logic in adapters (adapters are transport only)
 - Do not use `ANTHROPIC_API_KEY` — this uses MAX subscription
 - Do not auto-merge PRs — always create as drafts
+- Do not pass secrets to Claude child process — use `buildSafeEnv()` allowlist

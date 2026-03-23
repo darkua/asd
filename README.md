@@ -13,7 +13,7 @@ Uses **Claude Code MAX subscription** (no API key billing).
 └──────────┘             └──────────┘            └────────────┘
                               │                        │
                               │   ┌────────────────────┘
-                              │   │ JSON result + PR URL
+                              │   │ stream-json + PR URL
                               v   v
                          ┌──────────┐
                          │  Slack   │  ← reply in thread
@@ -21,12 +21,13 @@ Uses **Claude Code MAX subscription** (no API key billing).
                          └──────────┘
 ```
 
-1. Polls JIRA every 15 min for issues labeled `AI-GEN` in "To Do"
-2. Creates isolated git worktree per task
+1. Polls JIRA every 15 min for issues with `[AI-GEN]` in summary, status "To Do"
+2. Creates isolated git worktree per task, auto-installs dependencies
 3. Runs Claude Code in headless mode with streaming JSON output
-4. Claude reads CLAUDE.md, implements the task, creates a draft PR
-5. Worker updates JIRA status and notifies Slack
-6. Reply in the Slack thread to provide feedback — Claude applies it
+4. Sends real-time progress updates to Slack (every 60s)
+5. Validates PR exists via `gh pr view` before marking success
+6. Updates JIRA status and notifies Slack with cost + duration summary
+7. Reply in the Slack thread to provide feedback, cancel, retry, etc.
 
 ## Architecture
 
@@ -41,7 +42,8 @@ src/
     jira/             ← TaskSource: polls JIRA REST API
     slack/            ← Notifier + FeedbackListener: Bolt Socket Mode
     git/              ← VCS: worktree management
-    json-store/       ← Store: JSON file persistence
+    json-store/       ← Store: JSON file persistence (atomic writes)
+    health/           ← HTTP health check endpoint
   config/             ← environment config
   index.ts            ← composition root (wires everything)
 ```
@@ -85,6 +87,11 @@ npm run worker:once
 
 # Development with hot reload
 npm run dev
+
+# State management
+npm run worker:status          # Show all tracked tasks
+npm run worker:reset           # Clear entire state
+npm run worker:reset-task -- MP-123  # Reset single task
 ```
 
 ## Creating Tasks for the AI
@@ -96,21 +103,50 @@ In JIRA, create a ticket with:
 
 The worker picks it up on the next poll cycle.
 
+## Slack Commands
+
+### In a task thread (reply to notification):
+
+| Command | Description |
+|---------|-------------|
+| `fix: <feedback>` | Apply targeted changes (default mode) |
+| `redo: <feedback>` | Start fresh implementation |
+| `cancel` / `stop` | Kill running task |
+| `retry` | Reset failed task for reprocessing |
+| `reopen` | Reopen closed feedback |
+| `tak` / `yes` | Continue after reaching round limit |
+| `nie` / `no` | Close feedback permanently |
+
+### In the configured channel:
+
+| Command | Description |
+|---------|-------------|
+| `status` | Show processing tasks, queue size, stats |
+
 ## Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `JIRA_BASE_URL` | Yes | — | Atlassian instance URL |
-| `JIRA_EMAIL` | Yes | — | Your Atlassian email |
-| `JIRA_API_TOKEN` | Yes | — | Atlassian API token |
-| `JIRA_PROJECT_KEY` | Yes | — | Project key (e.g. MP) |
-| `REPO_PATH` | Yes | — | Absolute path to git repo |
-| `JIRA_TRIGGER_LABEL` | No | `AI-GEN` | Label to trigger processing |
-| `JIRA_DONE_STATUS` | No | `In Review` | Status after PR creation |
-| `REPO_BASE_BRANCH` | No | `develop` | Base branch for features |
-| `CLAUDE_MAX_TURNS` | No | `100` | Max agent iterations per task |
-| `CLAUDE_TIMEOUT_MS` | No | `600000` | Timeout per task (10 min) |
-| `POLL_INTERVAL_MS` | No | `900000` | Poll interval (15 min) |
+### Required
+
+| Variable | Description |
+|----------|-------------|
+| `JIRA_BASE_URL` | Atlassian instance URL |
+| `JIRA_EMAIL` | Your Atlassian email |
+| `JIRA_API_TOKEN` | Atlassian API token |
+| `JIRA_PROJECT_KEY` | Project key (e.g. MP) |
+| `REPO_PATH` | Absolute path to git repo |
+
+### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JIRA_TRIGGER_LABEL` | `AI-GEN` | Label to trigger processing |
+| `JIRA_DONE_STATUS` | `In Review` | Status after PR creation |
+| `REPO_BASE_BRANCH` | `develop` | Base branch for features |
+| `CLAUDE_MAX_TURNS` | `100` | Max agent iterations per task |
+| `CLAUDE_TIMEOUT_MS` | `600000` | Timeout per task (10 min) |
+| `POLL_INTERVAL_MS` | `900000` | Poll interval (15 min) |
+| `MAX_CONCURRENT` | `1` | Parallel task processing |
+| `HEALTH_PORT` | `0` | Health check HTTP port (0 = disabled) |
 
 ### Slack (Optional)
 
@@ -133,22 +169,28 @@ Set `SLACK_WEBHOOK_URL` to receive notifications when tasks complete or fail.
 | `SLACK_CHANNEL` | Channel ID for notifications |
 | `MAX_FEEDBACK_ROUNDS` | Max rounds before asking to continue (default: 3) |
 
-#### Giving Feedback
-
-Reply in the Slack notification thread:
-- **Fix mode** (default): `change the button color to blue` or `fix: improve validation`
-- **Redo mode**: `redo: start over with a different approach`
-
-After reaching the round limit, reply `tak`/`yes` to continue or `nie`/`no` to stop.
-
-## Safety
+## Safety & Security
 
 - **Never auto-merges** — all PRs are created as drafts
+- **PR validation** — verifies PR exists via `gh pr view` before marking success
 - **Idempotent** — tracks processed tasks, won't re-process
 - **Isolated** — each task runs in its own git worktree
 - **Sandboxed** — `--allowedTools` whitelist limits Claude's capabilities
-- **Rate-limited** — sequential processing respects MAX subscription limits
-- **No API key** — uses MAX subscription billing exclusively
+- **Environment sanitized** — Claude child process receives only allowlisted env vars (no JIRA/Slack secrets)
+- **Prompt guarded** — system prompt instructs Claude to never read .env or credential files
+- **Crash recovery** — stuck "processing" tasks are auto-recovered on restart
+- **Atomic state** — state file uses write-to-tmp-then-rename (no corruption on crash)
+- **Auto-cleanup** — stale worktrees older than 7 days are automatically removed
+- **Cost tracking** — per-task cost logged and shown in Slack notifications
+
+## Health Check
+
+Enable with `HEALTH_PORT=9090`:
+
+```bash
+curl http://localhost:9090/health
+# {"status":"ok","uptime":3600,"tasks":{"total":5,"done":3,"failed":1,"processing":1}}
+```
 
 ## Troubleshooting
 
@@ -164,14 +206,17 @@ claude login
 - Check logs for `Slack event received:` messages — if missing, events aren't arriving
 - After adding scopes/events, **reinstall the app** in your workspace
 
+**Task not picked up after reset:**
+- Branch may still exist: `git branch -D feat/mp-xxx && git push origin --delete feat/mp-xxx`
+
 **"No transition available" warnings:**
 Your JIRA workflow uses different status names. Update `JIRA_DONE_STATUS` in `.env`.
-
-**"Found undefined AI-GEN task(s)" in logs:**
-Not a real issue — cosmetic, fixed in latest version.
 
 **Worktree conflicts:**
 ```bash
 git worktree prune
 rm -rf /path/to/repo/../.worktrees/
 ```
+
+**Logs growing too large:**
+Log rotation is automatic (10MB max, keeps 3 archives). Or use system-level `logrotate`.
