@@ -103,25 +103,50 @@ In JIRA, create a ticket with:
 
 The worker picks it up on the next poll cycle.
 
-## Slack Commands
+## Slack Interaction
 
-### In a task thread (reply to notification):
+All task interactions happen through **interactive buttons** — not text commands. Text in task threads is ignored.
 
-| Command | Description |
-|---------|-------------|
-| `fix: <feedback>` | Apply targeted changes (default mode) |
-| `redo: <feedback>` | Start fresh implementation |
-| `cancel` / `stop` | Kill running task |
-| `retry` | Reset failed task for reprocessing |
-| `reopen` | Reopen closed feedback |
-| `tak` / `yes` | Continue after reaching round limit |
-| `nie` / `no` | Close feedback permanently |
+### Task Action Buttons
 
-### In the configured channel:
+After a task completes or fails, buttons appear in the thread:
 
-| Command | Description |
-|---------|-------------|
-| `status` | Show processing tasks, queue size, stats |
+| Button | Action |
+|--------|--------|
+| 🔧 **Fix** | Opens modal — type what should change |
+| 🔄 **Redo** | Opens modal — type instructions for fresh implementation |
+| 📊 **Status** | Shows task info + re-posts buttons |
+| 🔁 **Retry** | Resets failed task (failed tasks only) |
+| 🛑 **Cancel** | Kills running task |
+
+While the agent is processing feedback, buttons are replaced with **Cancel only**. Full buttons re-appear when work finishes.
+
+### Channel Commands
+
+Mention the bot (`@YourBot`) or type `status` in the channel to see a task list:
+
+```
+Worker Status
+Processing: 0 · Review: 2 · Done: 1 · Failed: 0
+───────────────
+👀 MP-812 — review      [Open]
+🔄 MP-1183 — processing [Open]
+```
+
+Click **Open** to create a new thread for that task with action buttons.
+
+### Thread Triggers
+
+In a task thread, mention the bot (`@YourBot`) or type `status` to re-post task info + action buttons.
+
+### Task Status Flow
+
+```
+processing → review (PR created, under human review)
+           → failed
+review → processing (Fix/Redo applied)
+failed → processing (Retry clicked)
+```
 
 ## Configuration
 

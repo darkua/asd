@@ -66,19 +66,48 @@ Hexagonal (Ports & Adapters). Three layers:
 
 **Adding a Slack command**: Add case in `Worker.handleRawFeedback()` for thread commands, or in `SlackListener.handleMessage()` for channel commands.
 
-## Slack Commands
+## Slack Interaction Model
 
-Thread commands (reply in task thread):
-- `cancel` / `stop` — kill running task
-- `retry` — reset failed task for reprocessing
-- `reopen` — reopen closed feedback
-- `fix: <feedback>` — apply targeted changes (default mode)
-- `redo: <feedback>` — start fresh implementation
-- `tak` / `yes` — continue after round limit
-- `nie` / `no` — close feedback
+**Button-driven**: All task interactions happen through Slack buttons, not text commands. Thread text is ignored (except bot mention and "status" which re-post buttons).
 
-Channel command (post in configured channel):
-- `status` — show processing tasks, queue size, stats
+### Interactive Buttons (appear in task thread after completion/failure)
+
+| Button | Action |
+|--------|--------|
+| 🔧 Fix | Opens modal to type targeted feedback |
+| 🔄 Redo | Opens modal to type feedback for fresh implementation |
+| 📊 Status | Shows task info + re-posts buttons |
+| 🔁 Retry | Resets failed task for reprocessing (failed tasks only) |
+| 🛑 Cancel | Kills running task immediately |
+
+During processing: all buttons replaced with Cancel-only. Full buttons re-appear when agent finishes.
+
+### Channel-level triggers
+
+| Trigger | Action |
+|---------|--------|
+| `@bot` mention | Shows task list with Open buttons per task |
+| `status` text | Same as mention — shows task list |
+
+Clicking **Open** on a task creates new message with task info + action buttons in thread.
+
+### Thread-level triggers
+
+| Trigger | Action |
+|---------|--------|
+| `@bot` mention | Shows task status + re-posts action buttons |
+| `status` text | Same as mention |
+
+### Task Status Flow
+
+```
+processing → review (PR created, awaiting human review)
+           → failed
+review → processing (feedback applied via Fix/Redo)
+failed → processing (via Retry button)
+```
+
+Main Slack message shows: `👀 Under Review` (not "Done") after PR creation.
 
 ## What NOT to Do
 
