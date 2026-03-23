@@ -12,6 +12,7 @@ export class Worker {
   private processingLock = new Map<string, Promise<void>>();
   private feedbackQueue: Array<{ taskKey: string; feedback: string; mode: "fix" | "redo"; replyFn: (text: string) => Promise<void> }> = [];
   private interval: ReturnType<typeof setInterval> | null = null;
+  private lastCleanupTime = 0;
 
   constructor(
     private pipeline: TaskPipeline,
@@ -92,6 +93,17 @@ export class Worker {
 
   private async pollCycle(): Promise<void> {
     logger.info("--- Poll cycle start ---");
+
+    // Periodic cleanup of stale worktrees (once per hour)
+    const ONE_HOUR = 60 * 60 * 1000;
+    if (Date.now() - this.lastCleanupTime > ONE_HOUR) {
+      this.lastCleanupTime = Date.now();
+      try {
+        this.cleanupStaleWorktrees();
+      } catch (err) {
+        logger.warn(`Worktree cleanup error: ${err}`);
+      }
+    }
 
     try {
       const tasks = await this.taskSource.poll();
@@ -176,6 +188,17 @@ export class Worker {
       try { this.vcs.removeWorktree(key); } catch { /* ignore */ }
       try { this.vcs.deleteBranch(key); } catch { /* ignore */ }
       await raw.replyFn("Task reset and branch cleaned up. Will be picked up in the next poll cycle.");
+      return;
+    }
+
+    if (lowerFeedback === "reopen") {
+      if (!task.feedbackClosed) {
+        await raw.replyFn("Feedback is already open for this task.");
+        return;
+      }
+      log.info(`Reopen requested for ${key}`);
+      this.store.reopenFeedback(key);
+      await raw.replyFn("Feedback reopened. Send your feedback.");
       return;
     }
 
@@ -273,6 +296,27 @@ export class Worker {
       this.processingLock.delete(key);
       lockResolve();
       await this.drainFeedbackQueue();
+    }
+  }
+
+  private cleanupStaleWorktrees(): void {
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    for (const status of ["done", "failed"] as const) {
+      const tasks = this.store.getTasksByStatus(status);
+      for (const task of tasks) {
+        if (!task.completedAt) continue;
+        const completedTime = new Date(task.completedAt).getTime();
+        if (now - completedTime < SEVEN_DAYS) continue;
+
+        try {
+          this.vcs.removeWorktree(task.key);
+          logger.debug(`Cleaned up stale worktree for ${task.key}`);
+        } catch {
+          // Already cleaned or doesn't exist
+        }
+      }
     }
   }
 

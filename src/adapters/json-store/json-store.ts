@@ -211,6 +211,15 @@ export class JsonStore implements Store {
     }
   }
 
+  reopenFeedback(key: string): void {
+    const state = this.loadState();
+    if (state.processed[key]) {
+      state.processed[key].feedbackClosed = false;
+      state.processed[key].limitReachedAt = undefined;
+      this.saveState(state);
+    }
+  }
+
   setCost(key: string, cost: number): void {
     const state = this.loadState();
     if (state.processed[key]) {

@@ -17,6 +17,7 @@ export interface Store {
   setFeedbackClosed(key: string): void;
   setLimitReachedAt(key: string): void;
   resetFeedbackLimit(key: string): void;
+  reopenFeedback(key: string): void;
   setCost(key: string, cost: number): void;
   getTasksByStatus(status: "processing" | "done" | "failed"): StoredTask[];
   getStats(): { total: number; done: number; failed: number; processing: number };
