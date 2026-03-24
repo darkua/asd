@@ -4,6 +4,10 @@ export const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 export const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 export const PROGRESS_THROTTLE_MS = 60_000;
 
+// ─── Slack Socket Mode Constants ────────────────────────────
+export const SLACK_CLIENT_PING_TIMEOUT_MS = 30_000;
+export const SLACK_SERVER_PING_TIMEOUT_MS = 60_000;
+
 // ─── Process Constants ──────────────────────────────────────
 export const KILL_GRACE_MS = 5_000;
 export const KILL_POLL_INTERVAL_MS = 200;

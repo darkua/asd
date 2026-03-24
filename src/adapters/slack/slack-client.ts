@@ -1,5 +1,7 @@
-import { App, LogLevel } from "@slack/bolt";
+import { App, LogLevel, SocketModeReceiver } from "@slack/bolt";
+import { SocketModeClient } from "@slack/socket-mode";
 import { createLogger } from "../../logger.js";
+import { SLACK_CLIENT_PING_TIMEOUT_MS, SLACK_SERVER_PING_TIMEOUT_MS } from "../../constants.js";
 
 const log = createLogger();
 
@@ -49,10 +51,23 @@ export class SlackClient {
       return;
     }
 
+    const receiver = new SocketModeReceiver({
+      appToken: this.config.appToken,
+      logLevel: LogLevel.WARN,
+    });
+
+    // Replace the default SocketModeClient with one that has higher ping/pong timeouts
+    // to prevent disconnects during long-running Claude CLI tasks
+    receiver.client = new SocketModeClient({
+      appToken: this.config.appToken,
+      logLevel: LogLevel.WARN,
+      clientPingTimeout: SLACK_CLIENT_PING_TIMEOUT_MS,
+      serverPingTimeout: SLACK_SERVER_PING_TIMEOUT_MS,
+    });
+
     this.app = new App({
       token: this.config.botToken,
-      appToken: this.config.appToken,
-      socketMode: true,
+      receiver,
       logLevel: LogLevel.WARN,
     });
 
