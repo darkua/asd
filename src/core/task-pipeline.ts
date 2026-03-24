@@ -225,13 +225,10 @@ export class TaskPipeline {
 
       this.store.markReview(key, result.prUrl);
 
-      if (isFeedback && thread) {
-        await this.notifier.replyInThread(thread, `Feedback applied (round ${feedbackRound}). PR: ${result.prUrl}`);
-      } else {
-        const completedThread = await this.notifier.notifyTaskCompleted(taskInfo, result, thread);
-        if (completedThread && !thread) {
-          this.store.setThreadRef(key, completedThread);
-        }
+      // notifyTaskCompleted posts status + action buttons (Fix/Redo/Status/Cancel)
+      const completedThread = await this.notifier.notifyTaskCompleted(taskInfo, result, thread);
+      if (completedThread && !thread) {
+        this.store.setThreadRef(key, completedThread);
       }
     } else {
       const errorMsg = isFeedback
