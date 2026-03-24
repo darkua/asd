@@ -12,6 +12,17 @@ import { SlackNotifier } from "./adapters/slack/slack-notifier.js";
 import { SlackListener } from "./adapters/slack/slack-listener.js";
 import { HealthServer } from "./adapters/health/health-server.js";
 
+// GitHub integration
+import { GitHubClient } from "./adapters/github/github-client.js";
+import { GitHubListener } from "./adapters/github/github-listener.js";
+import { GitHubNotifier } from "./adapters/github/github-notifier.js";
+import { CompositeFeedbackListener } from "./adapters/composite/composite-feedback-listener.js";
+import { CompositeNotifier } from "./adapters/composite/composite-notifier.js";
+
+// Port types (for typed variables)
+import type { Notifier } from "./ports/notifier.js";
+import type { FeedbackListener } from "./ports/feedback-listener.js";
+
 // Core
 import { TaskPipeline } from "./core/task-pipeline.js";
 import { Worker } from "./core/worker.js";
@@ -78,19 +89,60 @@ async function main(): Promise<void> {
     webhookUrl: config.slack.webhookUrl,
   });
 
-  const notifier = new SlackNotifier(slackClient);
+  const slackNotifier = new SlackNotifier(slackClient);
 
   const isOnce = process.argv.includes("--once");
 
   // Start SlackClient (only in continuous mode, if tokens configured)
-  let feedbackListener: SlackListener | null = null;
+  let slackListener: SlackListener | null = null;
   if (!isOnce && config.slack.botToken && config.slack.appToken) {
     await slackClient.start();
-    feedbackListener = new SlackListener(slackClient, store);
+    slackListener = new SlackListener(slackClient, store);
   }
 
   // Start health check endpoint (if configured)
   const healthServer = new HealthServer(config.worker.healthPort, store);
+
+  // ─── GitHub Integration ──────────────────────────────────
+  let notifier: Notifier = slackNotifier;
+  let feedbackListener: FeedbackListener | null = slackListener;
+
+  if (config.github.enabled) {
+    logger.info("GitHub integration: enabled");
+
+    if (!config.github.token) {
+      logger.warn("GITHUB_TOKEN / GH_TOKEN not set — GitHub API calls will fail");
+    }
+    if (config.worker.healthPort <= 0) {
+      logger.warn("HEALTH_PORT is 0 — GitHub webhook endpoint will not be available. Set HEALTH_PORT to enable.");
+    }
+
+    const ghClient = new GitHubClient({ token: config.github.token });
+    const ghNotifier = new GitHubNotifier(ghClient, store);
+    const ghListener = new GitHubListener(ghClient, store, {
+      botUsername: config.github.botUsername,
+      reviewBotUsers: config.github.reviewBotUsers,
+      webhookSecret: config.github.webhookSecret,
+    });
+
+    // Register webhook endpoint on HealthServer
+    healthServer.registerRoute("/webhooks/github", (req, res) => ghListener.webhook.handle(req, res));
+
+    // Compose notifiers: Slack primary, GitHub secondary
+    notifier = new CompositeNotifier(slackNotifier, [ghNotifier]);
+
+    // Compose feedback listeners
+    const listeners: FeedbackListener[] = [];
+    if (slackListener) listeners.push(slackListener);
+    listeners.push(ghListener);
+    feedbackListener = new CompositeFeedbackListener(listeners);
+
+    logger.info(`GitHub webhook: POST http://localhost:${config.worker.healthPort}/webhooks/github`);
+    logger.info(`GitHub bot username: ${config.github.botUsername || "(not set)"}`);
+    logger.info(`GitHub review bots: ${config.github.reviewBotUsers.join(", ")}`);
+  }
+
+  // Start health server (must come after route registration)
   if (config.worker.healthPort > 0) {
     await healthServer.start();
   }
