@@ -30,8 +30,6 @@ export const STATUS_EMOJI: Record<TaskStatus, string> = {
 
 // ─── Feedback Commands ──────────────────────────────────────
 export const CANCEL_COMMANDS = ["cancel", "stop"] as const;
-export const CONFIRM_YES_COMMANDS = ["tak", "yes"] as const;
-export const CONFIRM_NO_COMMANDS = ["nie", "no"] as const;
 
 // ─── GitHub Constants ──────────────────────────────────
 export const GITHUB_PROGRESS_THROTTLE_MS = 180_000; // 3 min — GitHub API rate limit friendly

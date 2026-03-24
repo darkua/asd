@@ -32,7 +32,6 @@ export class Worker {
       store,
       vcs,
       ai,
-      maxFeedbackRounds: config.maxFeedbackRounds,
       getStatus: () => this.getStatus(),
     });
   }

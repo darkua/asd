@@ -15,9 +15,7 @@ interface InternalTask {
   slackThreadTs?: string;
   slackChannel?: string;
   feedbackRound: number;
-  feedbackClosed?: boolean;
   childProcessPid?: number;
-  limitReachedAt?: string;
   taskInfo?: TaskInfo;
   costUsd?: number;
 }
@@ -35,9 +33,7 @@ function toStoredTask(t: InternalTask): StoredTask {
     prUrl: t.prUrl,
     error: t.error,
     feedbackRound: t.feedbackRound,
-    feedbackClosed: t.feedbackClosed,
     childProcessPid: t.childProcessPid,
-    limitReachedAt: t.limitReachedAt,
     taskInfo: t.taskInfo,
     costUsd: t.costUsd,
   };
@@ -201,40 +197,6 @@ export class JsonStore implements Store {
     task.feedbackRound = (task.feedbackRound || 0) + 1;
     this.saveState(state);
     return task.feedbackRound;
-  }
-
-  setFeedbackClosed(key: string): void {
-    const state = this.loadState();
-    if (state.processed[key]) {
-      state.processed[key].feedbackClosed = true;
-      this.saveState(state);
-    }
-  }
-
-  setLimitReachedAt(key: string): void {
-    const state = this.loadState();
-    if (state.processed[key]) {
-      state.processed[key].limitReachedAt = new Date().toISOString();
-      this.saveState(state);
-    }
-  }
-
-  resetFeedbackLimit(key: string): void {
-    const state = this.loadState();
-    if (state.processed[key]) {
-      // Only clear limitReachedAt — feedbackRound keeps incrementing for display ("round 4 of 6")
-      state.processed[key].limitReachedAt = undefined;
-      this.saveState(state);
-    }
-  }
-
-  reopenFeedback(key: string): void {
-    const state = this.loadState();
-    if (state.processed[key]) {
-      state.processed[key].feedbackClosed = false;
-      state.processed[key].limitReachedAt = undefined;
-      this.saveState(state);
-    }
   }
 
   setCost(key: string, cost: number): void {

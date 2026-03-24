@@ -148,9 +148,7 @@ async function main(): Promise<void> {
   }
 
   // ─── Create Core ────────────────────────────────────────
-  const pipeline = new TaskPipeline(ai, taskSource, notifier, store, vcs, {
-    maxFeedbackRounds: config.worker.maxFeedbackRounds,
-  });
+  const pipeline = new TaskPipeline(ai, taskSource, notifier, store, vcs);
 
   const worker = new Worker(
     pipeline,
@@ -164,7 +162,6 @@ async function main(): Promise<void> {
       pollIntervalMs: config.worker.pollIntervalMs,
       maxTurns: config.worker.maxTurns,
       timeoutMs: config.worker.timeoutMs,
-      maxFeedbackRounds: config.worker.maxFeedbackRounds,
       maxConcurrent: config.worker.maxConcurrent,
       isOnce,
     },

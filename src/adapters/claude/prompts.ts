@@ -101,7 +101,7 @@ export function buildFeedbackPrompt(
   return [
     originalPrompt,
     "",
-    `## Human Feedback (round ${feedback.round} of ${feedback.maxRounds})`,
+    `## Human Feedback (round ${feedback.round})`,
     feedback.feedback,
     "",
     ...instructions,

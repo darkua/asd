@@ -9,8 +9,6 @@ import { toErrorMessage } from "../../utils/errors.js";
 import {
   GITHUB_CODERABBIT_DEBOUNCE_MS,
   CANCEL_COMMANDS,
-  CONFIRM_YES_COMMANDS,
-  CONFIRM_NO_COMMANDS,
 } from "../../constants.js";
 
 const log = createLogger();
@@ -242,8 +240,7 @@ export class GitHubListener implements FeedbackListener {
 
     // Commands — reuse constants from FeedbackCommandHandler
     const commands: readonly string[] = [
-      ...CANCEL_COMMANDS, "retry", "status", "reopen",
-      ...CONFIRM_YES_COMMANDS, ...CONFIRM_NO_COMMANDS,
+      ...CANCEL_COMMANDS, "retry", "status",
     ];
     if (commands.includes(lower)) {
       return { feedback: lower, mode: "fix", isCommand: lower === "status" };

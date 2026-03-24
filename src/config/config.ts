@@ -56,7 +56,6 @@ export const config = {
     maxConcurrent: parseInt(optional("MAX_CONCURRENT", "1"), 10),
     maxTurns: parseInt(optional("CLAUDE_MAX_TURNS", "100"), 10),
     timeoutMs: parseInt(optional("CLAUDE_TIMEOUT_MS", "600000"), 10),     // 10 min
-    maxFeedbackRounds: parseInt(optional("MAX_FEEDBACK_ROUNDS", "3"), 10),
     healthPort: parseInt(optional("HEALTH_PORT", "0"), 10),
   },
 

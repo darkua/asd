@@ -21,10 +21,6 @@ export interface TaskStateStore {
 
 export interface FeedbackStore {
   incrementFeedbackRound(key: string): number;
-  setFeedbackClosed(key: string): void;
-  setLimitReachedAt(key: string): void;
-  resetFeedbackLimit(key: string): void;
-  reopenFeedback(key: string): void;
 }
 
 export interface TaskMetadataStore {
