@@ -1,14 +1,29 @@
-import { App, LogLevel, SocketModeReceiver } from "@slack/bolt";
-import { SocketModeClient } from "@slack/socket-mode";
+// CJS packages need default import for Node ESM compatibility
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import { createRequire } from "node:module";
+const _require = createRequire(import.meta.url);
+
+const { App, LogLevel, SocketModeReceiver }: typeof import("@slack/bolt") =
+  _require("@slack/bolt");
+
+const { SocketModeClient }: typeof import("@slack/socket-mode") =
+  _require("@slack/socket-mode");
 import { createLogger } from "../../logger.js";
-import { SLACK_CLIENT_PING_TIMEOUT_MS, SLACK_SERVER_PING_TIMEOUT_MS } from "../../constants.js";
+import {
+  SLACK_CLIENT_PING_TIMEOUT_MS,
+  SLACK_SERVER_PING_TIMEOUT_MS,
+} from "../../constants.js";
 
 const log = createLogger();
 
 export interface SlackBlock {
   type: string;
   text?: { type: string; text: string };
-  elements?: Array<{ type: string; text?: string | { type: string; text: string }; url?: string }>;
+  elements?: Array<{
+    type: string;
+    text?: string | { type: string; text: string };
+    url?: string;
+  }>;
   fields?: Array<{ type: string; text: string }>;
 }
 
@@ -27,7 +42,7 @@ export class SlackClient {
   readonly channel: string;
   readonly webhookUrl: string;
 
-  private app: App | null = null;
+  private app: InstanceType<typeof App> | null = null;
   private botUserId: string | null = null;
   private readonly config: SlackClientConfig;
 
@@ -77,17 +92,21 @@ export class SlackClient {
     log.info(`Slack bot connected as user ${this.botUserId}`);
 
     // Log ALL incoming events for diagnostics
-    this.app.use(async (args) => {
-      const event = (args as any).event;
+    this.app.use(async (args: any) => {
+      const event = args.event;
       if (event) {
-        log.debug(`Slack event received: type=${event.type}, subtype=${event.subtype || "none"}`);
+        log.debug(
+          `Slack event received: type=${event.type}, subtype=${event.subtype || "none"}`,
+        );
       }
       await args.next();
     });
 
     await this.app.start();
     log.info("Slack Bot started in Socket Mode");
-    log.info("NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)");
+    log.info(
+      "NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)",
+    );
   }
 
   async stop(): Promise<void> {
@@ -101,9 +120,11 @@ export class SlackClient {
   onMessage(handler: MessageHandler): void {
     if (!this.app) return;
 
-    this.app.message(async ({ message }) => {
+    this.app.message(async ({ message }: any) => {
       const msg = message as SlackMessageEvent;
-      log.debug(`app.message() fired: ts=${msg.ts}, thread_ts=${msg.thread_ts || "none"}`);
+      log.debug(
+        `app.message() fired: ts=${msg.ts}, thread_ts=${msg.thread_ts || "none"}`,
+      );
       await handler(msg);
     });
   }
@@ -160,21 +181,27 @@ export class SlackClient {
 
   onAction(actionId: string, handler: (payload: any) => Promise<void>): void {
     if (!this.app) return;
-    this.app.action(actionId, async ({ ack, body, action }) => {
+    this.app.action(actionId, async ({ ack, body, action }: any) => {
       await ack();
       await handler({ body, action });
     });
   }
 
-  onViewSubmission(callbackId: string, handler: (payload: any) => Promise<void>): void {
+  onViewSubmission(
+    callbackId: string,
+    handler: (payload: any) => Promise<void>,
+  ): void {
     if (!this.app) return;
-    this.app.view(callbackId, async ({ ack, body, view }) => {
+    this.app.view(callbackId, async ({ ack, body, view }: any) => {
       await ack();
       await handler({ body, view });
     });
   }
 
-  async openModal(triggerId: string, view: Record<string, unknown>): Promise<void> {
+  async openModal(
+    triggerId: string,
+    view: Record<string, unknown>,
+  ): Promise<void> {
     if (!this.app) return;
     await this.app.client.views.open({
       trigger_id: triggerId,
