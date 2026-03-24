@@ -1,18 +1,10 @@
 // CJS packages need default import for Node ESM compatibility
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 import { createRequire } from "node:module";
 const _require = createRequire(import.meta.url);
 
-const { App, LogLevel, SocketModeReceiver }: typeof import("@slack/bolt") =
-  _require("@slack/bolt");
+const { App, LogLevel }: typeof import("@slack/bolt") = _require("@slack/bolt");
 
-const { SocketModeClient }: typeof import("@slack/socket-mode") =
-  _require("@slack/socket-mode");
 import { createLogger } from "../../logger.js";
-import {
-  SLACK_CLIENT_PING_TIMEOUT_MS,
-  SLACK_SERVER_PING_TIMEOUT_MS,
-} from "../../constants.js";
 
 const log = createLogger();
 
@@ -66,23 +58,10 @@ export class SlackClient {
       return;
     }
 
-    const receiver = new SocketModeReceiver({
-      appToken: this.config.appToken,
-      logLevel: LogLevel.WARN,
-    });
-
-    // Replace the default SocketModeClient with one that has higher ping/pong timeouts
-    // to prevent disconnects during long-running Claude CLI tasks
-    receiver.client = new SocketModeClient({
-      appToken: this.config.appToken,
-      logLevel: LogLevel.WARN,
-      clientPingTimeout: SLACK_CLIENT_PING_TIMEOUT_MS,
-      serverPingTimeout: SLACK_SERVER_PING_TIMEOUT_MS,
-    });
-
     this.app = new App({
       token: this.config.botToken,
-      receiver,
+      appToken: this.config.appToken,
+      socketMode: true,
       logLevel: LogLevel.WARN,
     });
 
