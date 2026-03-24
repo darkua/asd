@@ -37,11 +37,15 @@ export interface RawFeedback {
   replyFn: (text: string) => Promise<void>;
 }
 
+import type { TaskStatus } from "../constants.js";
+
+export type { TaskStatus };
+
 export interface StoredTask {
   key: string;
   startedAt: string;
   completedAt?: string;
-  status: "processing" | "review" | "done" | "failed";
+  status: TaskStatus;
   prUrl?: string;
   error?: string;
   threadRef?: ThreadRef;

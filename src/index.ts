@@ -96,7 +96,9 @@ async function main(): Promise<void> {
   }
 
   // ─── Create Core ────────────────────────────────────────
-  const pipeline = new TaskPipeline(ai, taskSource, notifier, store, vcs);
+  const pipeline = new TaskPipeline(ai, taskSource, notifier, store, vcs, {
+    maxFeedbackRounds: config.worker.maxFeedbackRounds,
+  });
 
   const worker = new Worker(
     pipeline,

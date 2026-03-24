@@ -1,12 +1,12 @@
 import { readFileSync, writeFileSync, existsSync, renameSync } from "node:fs";
 import type { Store } from "../../ports/store.js";
-import type { TaskInfo, ThreadRef, StoredTask } from "../../ports/types.js";
+import type { TaskInfo, ThreadRef, StoredTask, TaskStatus } from "../../ports/types.js";
 
 interface InternalTask {
   jiraKey: string;
   startedAt: string;
   completedAt?: string;
-  status: "processing" | "review" | "done" | "failed";
+  status: TaskStatus;
   prUrl?: string;
   error?: string;
   threadId?: string;
@@ -52,23 +52,31 @@ function toStoredTask(t: InternalTask): StoredTask {
 
 export class JsonStore implements Store {
   private readonly filePath: string;
+  private cache: State | null = null;
 
   constructor(filePath: string) {
     this.filePath = filePath;
   }
 
   private loadState(): State {
+    if (this.cache) return this.cache;
+
+    let state: State;
     if (!existsSync(this.filePath)) {
-      return { processed: {} };
+      state = { processed: {} };
+    } else {
+      try {
+        state = JSON.parse(readFileSync(this.filePath, "utf-8"));
+      } catch {
+        state = { processed: {} };
+      }
     }
-    try {
-      return JSON.parse(readFileSync(this.filePath, "utf-8"));
-    } catch {
-      return { processed: {} };
-    }
+    this.cache = state;
+    return state;
   }
 
   private saveState(state: State): void {
+    this.cache = state;
     const tmpPath = this.filePath + ".tmp";
     writeFileSync(tmpPath, JSON.stringify(state, null, 2));
     renameSync(tmpPath, this.filePath);
@@ -232,12 +240,12 @@ export class JsonStore implements Store {
   setCost(key: string, cost: number): void {
     const state = this.loadState();
     if (state.processed[key]) {
-      (state.processed[key] as any).costUsd = cost;
+      state.processed[key].costUsd = cost;
       this.saveState(state);
     }
   }
 
-  getTasksByStatus(status: "processing" | "done" | "failed"): StoredTask[] {
+  getTasksByStatus(status: TaskStatus): StoredTask[] {
     const state = this.loadState();
     return Object.values(state.processed)
       .filter((t) => t.status === status)

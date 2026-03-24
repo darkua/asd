@@ -3,6 +3,8 @@ import { createInterface } from "node:readline";
 import { createLogger } from "../../logger.js";
 import type { AIProvider, ProgressCallback } from "../../ports/ai-provider.js";
 import type { TaskInfo, AIResult, FeedbackRequest } from "../../ports/types.js";
+import { KILL_GRACE_MS, KILL_POLL_INTERVAL_MS } from "../../constants.js";
+import type { ClaudeStreamEvent, ContentBlock } from "./stream-types.js";
 import {
   ALLOWED_TOOLS,
   buildPrompt,
@@ -93,7 +95,7 @@ export class ClaudeProvider implements AIProvider {
           clearInterval(checkInterval);
           resolve();
         }
-      }, 200);
+      }, KILL_POLL_INTERVAL_MS);
 
       setTimeout(() => {
         clearInterval(checkInterval);
@@ -103,7 +105,7 @@ export class ClaudeProvider implements AIProvider {
           // already dead
         }
         resolve();
-      }, 5000);
+      }, KILL_GRACE_MS);
     });
 
     log.info(`Process group ${pid} terminated`);
@@ -163,7 +165,7 @@ export class ClaudeProvider implements AIProvider {
       rl.on("line", (line) => {
         rawLines.push(line);
         try {
-          const event = JSON.parse(line);
+          const event = JSON.parse(line) as ClaudeStreamEvent;
           this.processStreamEvent(event, log, turnCounter, costTracker, startTime, onProgress);
         } catch {
           // Not JSON — log raw
@@ -223,7 +225,7 @@ export class ClaudeProvider implements AIProvider {
   }
 
   private processStreamEvent(
-    event: any,
+    event: ClaudeStreamEvent,
     log: ReturnType<typeof createLogger>,
     turnCounter: { value: number },
     costTracker: { value: number | undefined },
@@ -292,17 +294,16 @@ export class ClaudeProvider implements AIProvider {
     let lastText = "";
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
-        const event = JSON.parse(lines[i]);
+        const event = JSON.parse(lines[i]) as ClaudeStreamEvent;
         if (event.type === "assistant" && event.message?.content) {
           const texts = event.message.content
-            .filter((b: any) => b.type === "text")
-            .map((b: any) => b.text);
+            .filter((b): b is ContentBlock & { type: "text"; text: string } => b.type === "text")
+            .map((b) => b.text);
           if (texts.length > 0) {
             lastText = texts.join("\n");
             break;
           }
         }
-        // Also check "result" type which has the final output
         if (event.type === "result" && event.result) {
           return event.result;
         }

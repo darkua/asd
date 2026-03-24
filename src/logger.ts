@@ -1,10 +1,11 @@
 import { appendFileSync, statSync, renameSync, existsSync } from "node:fs";
 import { config } from "./config/config.js";
+import { MAX_LOG_SIZE_BYTES } from "./constants.js";
 
 function rotateIfNeeded(logFile: string): void {
   try {
     const stats = statSync(logFile);
-    if (stats.size > 10 * 1024 * 1024) { // 10MB
+    if (stats.size > MAX_LOG_SIZE_BYTES) {
       // Shift existing rotations
       for (let i = 2; i >= 1; i--) {
         const from = i === 1 ? logFile : `${logFile}.${i - 1}`;

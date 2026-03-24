@@ -40,12 +40,12 @@ export const config = {
 
   // Worker
   worker: {
-    pollIntervalMs: parseInt(optional("POLL_INTERVAL_MS", "900000")), // 15 min
-    maxConcurrent: parseInt(optional("MAX_CONCURRENT", "1")),
-    maxTurns: parseInt(optional("CLAUDE_MAX_TURNS", "100")),
-    timeoutMs: parseInt(optional("CLAUDE_TIMEOUT_MS", "600000")),     // 10 min
-    maxFeedbackRounds: parseInt(optional("MAX_FEEDBACK_ROUNDS", "3")),
-    healthPort: parseInt(optional("HEALTH_PORT", "0")),
+    pollIntervalMs: parseInt(optional("POLL_INTERVAL_MS", "900000"), 10), // 15 min
+    maxConcurrent: parseInt(optional("MAX_CONCURRENT", "1"), 10),
+    maxTurns: parseInt(optional("CLAUDE_MAX_TURNS", "100"), 10),
+    timeoutMs: parseInt(optional("CLAUDE_TIMEOUT_MS", "600000"), 10),     // 10 min
+    maxFeedbackRounds: parseInt(optional("MAX_FEEDBACK_ROUNDS", "3"), 10),
+    healthPort: parseInt(optional("HEALTH_PORT", "0"), 10),
   },
 
   // Paths

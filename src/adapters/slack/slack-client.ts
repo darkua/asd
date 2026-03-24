@@ -17,7 +17,9 @@ export interface SlackClientConfig {
   webhookUrl: string;
 }
 
-type MessageHandler = (message: any) => Promise<void>;
+import type { SlackMessageEvent } from "./slack-types.js";
+
+type MessageHandler = (message: SlackMessageEvent) => Promise<void>;
 
 export class SlackClient {
   readonly channel: string;
@@ -85,8 +87,9 @@ export class SlackClient {
     if (!this.app) return;
 
     this.app.message(async ({ message }) => {
-      log.debug(`app.message() fired: ts=${(message as any).ts}, thread_ts=${(message as any).thread_ts || "none"}`);
-      await handler(message);
+      const msg = message as SlackMessageEvent;
+      log.debug(`app.message() fired: ts=${msg.ts}, thread_ts=${msg.thread_ts || "none"}`);
+      await handler(msg);
     });
   }
 

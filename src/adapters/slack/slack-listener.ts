@@ -2,6 +2,9 @@ import type { FeedbackListener, RawFeedbackHandler, StatusHandler } from "../../
 import type { Store } from "../../ports/store.js";
 import { SlackClient } from "./slack-client.js";
 import { createLogger } from "../../logger.js";
+import { buildActionButtons, STATUS_EMOJI } from "./slack-ui.js";
+import { MAX_TASK_LIST_DISPLAY } from "../../constants.js";
+import type { SlackActionPayload, SlackViewSubmissionPayload, SlackMessageEvent } from "./slack-types.js";
 
 const log = createLogger();
 
@@ -37,13 +40,13 @@ export class SlackListener implements FeedbackListener {
     // Direct action buttons (no modal needed)
     for (const cmd of ["task_cancel", "task_retry"] as const) {
       this.client.onAction(cmd, async ({ body }) => {
-        const action = (body as any).actions?.[0];
+        const action = (body as SlackActionPayload).actions?.[0];
         const taskKey = action?.value;
         if (!taskKey || !this.feedbackHandler) return;
 
-        const channel = (body as any).channel?.id;
-        const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
-        const messageTs = (body as any).message?.ts;
+        const channel = (body as SlackActionPayload).channel?.id;
+        const threadTs = (body as SlackActionPayload).message?.thread_ts || (body as SlackActionPayload).message?.ts;
+        const messageTs = (body as SlackActionPayload).message?.ts;
         const feedback = cmd === "task_cancel" ? "cancel" : "retry";
 
         // Remove buttons from the clicked message
@@ -64,12 +67,12 @@ export class SlackListener implements FeedbackListener {
 
     // Status button — reply with task info + re-post action buttons
     this.client.onAction("task_status", async ({ body }) => {
-      const action = (body as any).actions?.[0];
+      const action = (body as SlackActionPayload).actions?.[0];
       const taskKey = action?.value;
       if (!taskKey) return;
 
-      const channel = (body as any).channel?.id;
-      const threadTs = (body as any).message?.thread_ts || (body as any).message?.ts;
+      const channel = (body as SlackActionPayload).channel?.id;
+      const threadTs = (body as SlackActionPayload).message?.thread_ts || (body as SlackActionPayload).message?.ts;
       if (!channel || !threadTs) return;
 
       const task = this.store.getTask(taskKey);
@@ -86,24 +89,23 @@ export class SlackListener implements FeedbackListener {
 
       // Re-post action buttons
       await this.client.replyInThreadWithBlocks(channel, threadTs, [
-        { type: "actions", elements: this.buildActionButtons(taskKey, task.status) } as any,
+        { type: "actions", elements: buildActionButtons(taskKey, task.status) } as any,
       ], "Task actions");
     });
 
     // Open button — creates new thread for task with action buttons
     this.client.onAction("task_open", async ({ body }) => {
-      const action = (body as any).actions?.[0];
+      const action = (body as SlackActionPayload).actions?.[0];
       const taskKey = action?.value;
       if (!taskKey) return;
 
-      const channel = (body as any).channel?.id;
+      const channel = (body as SlackActionPayload).channel?.id;
       if (!channel) return;
 
       const task = this.store.getTask(taskKey);
       if (!task) return;
 
-      const statusEmoji: Record<string, string> = { processing: "🔄", review: "👀", done: "✅", failed: "❌" };
-      const emoji = statusEmoji[task.status] || "❓";
+      const emoji = STATUS_EMOJI[task.status] || "❓";
       const summary = task.taskInfo?.summary || taskKey;
 
       // Post new main message for this task
@@ -119,7 +121,7 @@ export class SlackListener implements FeedbackListener {
 
       // Post action buttons in thread
       await this.client.replyInThreadWithBlocks(posted.channel, posted.ts, [
-        { type: "actions", elements: this.buildActionButtons(taskKey, task.status) } as any,
+        { type: "actions", elements: buildActionButtons(taskKey, task.status) } as any,
       ], "Task actions");
 
       // Update store with new thread ref so future button clicks work
@@ -129,14 +131,14 @@ export class SlackListener implements FeedbackListener {
     // Fix/Redo buttons — open modal for user to type feedback
     for (const mode of ["fix", "redo"] as const) {
       this.client.onAction(`task_${mode}`, async ({ body }) => {
-        const action = (body as any).actions?.[0];
+        const action = (body as SlackActionPayload).actions?.[0];
         const taskKey = action?.value;
-        const triggerId = (body as any).trigger_id;
+        const triggerId = (body as SlackActionPayload).trigger_id;
         if (!taskKey || !triggerId) return;
 
-        const messageTs = (body as any).message?.ts;
-        const threadTs = (body as any).message?.thread_ts || messageTs;
-        const channel = (body as any).channel?.id;
+        const messageTs = (body as SlackActionPayload).message?.ts;
+        const threadTs = (body as SlackActionPayload).message?.thread_ts || messageTs;
+        const channel = (body as SlackActionPayload).channel?.id;
 
         await this.client.openModal(triggerId, {
           type: "modal",
@@ -193,7 +195,7 @@ export class SlackListener implements FeedbackListener {
     }
   }
 
-  private async handleMessage(message: any): Promise<void> {
+  private async handleMessage(message: SlackMessageEvent): Promise<void> {
     // Filter: bot messages and subtypes (edits, joins, etc.)
     if (message.bot_id || message.subtype) return;
 
@@ -233,7 +235,7 @@ export class SlackListener implements FeedbackListener {
 
       // Post action buttons
       await this.client.replyInThreadWithBlocks(channel, threadTs, [
-        { type: "actions", elements: this.buildActionButtons(task.key, task.status) } as any,
+        { type: "actions", elements: buildActionButtons(task.key, task.status) } as any,
       ], "Task actions");
       return;
     }
@@ -268,10 +270,8 @@ export class SlackListener implements FeedbackListener {
         text: { type: "mrkdwn", text: "No tasks tracked yet." },
       });
     } else {
-      const statusEmoji: Record<string, string> = { processing: "🔄", review: "👀", done: "✅", failed: "❌" };
-
-      for (const task of allTasks.slice(0, 15)) {
-        const emoji = statusEmoji[task.status] || "❓";
+      for (const task of allTasks.slice(0, MAX_TASK_LIST_DISPLAY)) {
+        const emoji = STATUS_EMOJI[task.status] || "❓";
         const summary = task.taskInfo?.summary || task.key;
         blocks.push({
           type: "section",
@@ -289,16 +289,4 @@ export class SlackListener implements FeedbackListener {
     await this.client.replyInThreadWithBlocks(channel, replyTs, blocks, "Task list");
   }
 
-  private buildActionButtons(taskKey: string, status: string): any[] {
-    const buttons: any[] = [
-      { type: "button", text: { type: "plain_text", text: "🔧 Fix" }, action_id: "task_fix", value: taskKey, style: "primary" },
-      { type: "button", text: { type: "plain_text", text: "🔄 Redo" }, action_id: "task_redo", value: taskKey },
-      { type: "button", text: { type: "plain_text", text: "📊 Status" }, action_id: "task_status", value: taskKey },
-    ];
-    if (status === "failed") {
-      buttons.push({ type: "button", text: { type: "plain_text", text: "🔁 Retry" }, action_id: "task_retry", value: taskKey });
-    }
-    buttons.push({ type: "button", text: { type: "plain_text", text: "🛑 Cancel" }, action_id: "task_cancel", value: taskKey, style: "danger" });
-    return buttons;
-  }
 }

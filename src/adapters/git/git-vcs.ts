@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import type { VCS } from "../../ports/vcs.js";
 import { createLogger } from "../../logger.js";
+import { GIT_TIMEOUT_MS, INSTALL_TIMEOUT_MS } from "../../constants.js";
+import { toErrorMessage } from "../../utils/errors.js";
 
 interface GitConfig {
   path: string;
@@ -17,7 +19,7 @@ export class GitVCS implements VCS {
     return execSync(`git ${cmd}`, {
       cwd: cwd || this.config.path,
       encoding: "utf-8",
-      timeout: 30_000,
+      timeout: GIT_TIMEOUT_MS,
     }).trim();
   }
 
@@ -103,7 +105,7 @@ export class GitVCS implements VCS {
     } catch { /* branch doesn't exist locally */ }
     try {
       execSync(`git push ${this.config.remote} --delete ${branch}`, {
-        cwd: this.config.path, encoding: "utf-8", stdio: "pipe", timeout: 30_000,
+        cwd: this.config.path, encoding: "utf-8", stdio: "pipe", timeout: GIT_TIMEOUT_MS,
       });
       log.debug(`Deleted remote branch ${branch}`);
     } catch { /* remote branch doesn't exist */ }
@@ -128,7 +130,7 @@ export class GitVCS implements VCS {
         cwd: this.config.path,
         encoding: "utf-8",
         stdio: "pipe",
-        timeout: 15_000,
+        timeout: GIT_TIMEOUT_MS,
       });
       return true;
     } catch {
@@ -172,12 +174,11 @@ export class GitVCS implements VCS {
         cwd: workDir,
         encoding: "utf-8",
         stdio: "pipe",
-        timeout: 300_000, // 5 min
+        timeout: INSTALL_TIMEOUT_MS,
       });
       log.info("Dependencies installed");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn(`Dependency install failed: ${msg.slice(0, 200)}`);
+      log.warn(`Dependency install failed: ${toErrorMessage(err).slice(0, 200)}`);
     }
   }
 }
