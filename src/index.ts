@@ -121,7 +121,6 @@ async function main(): Promise<void> {
     const ghNotifier = new GitHubNotifier(ghClient, store);
     const ghListener = new GitHubListener(ghClient, store, {
       botUsername: config.github.botUsername,
-      reviewBotUsers: config.github.reviewBotUsers,
       webhookSecret: config.github.webhookSecret,
     });
 
@@ -139,7 +138,6 @@ async function main(): Promise<void> {
 
     logger.info(`GitHub webhook: POST http://localhost:${config.worker.healthPort}/webhooks/github`);
     logger.info(`GitHub bot username: ${config.github.botUsername || "(not set)"}`);
-    logger.info(`GitHub review bots: ${config.github.reviewBotUsers.join(", ")}`);
   }
 
   // Start health server (must come after route registration)

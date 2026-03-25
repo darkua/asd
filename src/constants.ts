@@ -33,5 +33,6 @@ export const CANCEL_COMMANDS = ["cancel", "stop"] as const;
 
 // ─── GitHub Constants ──────────────────────────────────
 export const GITHUB_PROGRESS_THROTTLE_MS = 180_000; // 3 min — GitHub API rate limit friendly
-export const GITHUB_CODERABBIT_DEBOUNCE_MS = 10_000; // 10s — batch CodeRabbit review comments
 export const GITHUB_API_BASE = "https://api.github.com";
+export const GITHUB_BOT_SIGNATURE = "<!-- jira-ai-worker -->";
+export const GITHUB_CODERABBIT_USERNAME = "coderabbitai[bot]";

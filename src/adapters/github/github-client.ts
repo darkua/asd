@@ -1,6 +1,6 @@
 import { createLogger } from "../../logger.js";
-import { GITHUB_API_BASE } from "../../constants.js";
-import type { PrRef } from "./github-types.js";
+import { GITHUB_API_BASE, GITHUB_BOT_SIGNATURE } from "../../constants.js";
+import type { PrRef, GitHubReview, GitHubReviewComment } from "./github-types.js";
 
 const log = createLogger();
 
@@ -31,10 +31,36 @@ export class GitHubClient {
     return this.authenticatedUser;
   }
 
-  /** Post a comment on a PR (uses the Issues API which works for PRs). */
-  async postComment(owner: string, repo: string, issueNumber: number, body: string): Promise<void> {
-    await this.request("POST", `/repos/${owner}/${repo}/issues/${issueNumber}/comments`, { body });
-    log.debug(`Posted comment on ${owner}/${repo}#${issueNumber}`);
+  /** Post a comment on a PR. Returns the comment ID for later editing. */
+  async postComment(owner: string, repo: string, issueNumber: number, body: string): Promise<number> {
+    const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;
+    const result = await this.request<{ id: number }>("POST", `/repos/${owner}/${repo}/issues/${issueNumber}/comments`, { body: signed });
+    log.debug(`Posted comment on ${owner}/${repo}#${issueNumber} (id: ${result.id})`);
+    return result.id;
+  }
+
+  /** Fetch all reviews on a PR. */
+  async getReviews(owner: string, repo: string, prNumber: number): Promise<GitHubReview[]> {
+    return this.request<GitHubReview[]>("GET", `/repos/${owner}/${repo}/pulls/${prNumber}/reviews`);
+  }
+
+  /** Fetch all comments from a specific PR review. */
+  async getReviewComments(owner: string, repo: string, prNumber: number, reviewId: number): Promise<GitHubReviewComment[]> {
+    return this.request<GitHubReviewComment[]>("GET", `/repos/${owner}/${repo}/pulls/${prNumber}/reviews/${reviewId}/comments`);
+  }
+
+  /** Reply to a specific review comment on a PR. */
+  async replyToReviewComment(owner: string, repo: string, prNumber: number, commentId: number, body: string): Promise<void> {
+    const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;
+    await this.request("POST", `/repos/${owner}/${repo}/pulls/${prNumber}/comments/${commentId}/replies`, { body: signed });
+    log.debug(`Replied to review comment ${commentId} on ${owner}/${repo}#${prNumber}`);
+  }
+
+  /** Edit an existing comment. */
+  async editComment(owner: string, repo: string, commentId: number, body: string): Promise<void> {
+    const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;
+    await this.request("PATCH", `/repos/${owner}/${repo}/issues/comments/${commentId}`, { body: signed });
+    log.debug(`Edited comment ${commentId} on ${owner}/${repo}`);
   }
 
   /**
