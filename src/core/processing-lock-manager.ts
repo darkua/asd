@@ -7,6 +7,7 @@ interface QueuedFeedback {
   feedback: string;
   mode: "fix" | "redo";
   replyFn: (text: string) => Promise<void>;
+  onCompleteFn?: (success: boolean) => Promise<void>;
 }
 
 export class ProcessingLockManager {
@@ -52,17 +53,25 @@ export class ProcessingLockManager {
   async drainQueue(pipeline: TaskPipeline): Promise<void> {
     while (this.queue.length > 0) {
       const item = this.queue.shift()!;
-      const { taskKey, feedback, mode, replyFn } = item;
+      const { taskKey, feedback, mode, replyFn, onCompleteFn } = item;
 
       logger.info(`Draining queued feedback for ${taskKey}`);
 
+      let success = false;
       await this.withLock(taskKey, async () => {
         try {
           await pipeline.handleFeedback(taskKey, feedback, mode);
+          success = true;
         } catch (err) {
           await replyFn(`Feedback processing failed: ${toErrorMessage(err)}`);
         }
       });
+
+      if (onCompleteFn) {
+        await onCompleteFn(success).catch((err) => {
+          logger.warn(`onCompleteFn error for ${taskKey}: ${toErrorMessage(err)}`);
+        });
+      }
     }
   }
 }

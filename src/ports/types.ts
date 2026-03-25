@@ -34,6 +34,8 @@ export interface RawFeedback {
   feedback: string;
   mode: "fix" | "redo";
   replyFn: (text: string) => Promise<void>;
+  /** Called after feedback processing completes (success or failure). */
+  onCompleteFn?: (success: boolean) => Promise<void>;
 }
 
 import type { TaskStatus } from "../constants.js";

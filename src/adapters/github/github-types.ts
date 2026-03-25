@@ -11,6 +11,12 @@ export interface GitHubComment {
   user: GitHubUser;
   html_url: string;
   created_at: string;
+  /** Present on pull_request_review_comment events */
+  path?: string;
+  /** Present on pull_request_review_comment events */
+  line?: number | null;
+  /** Present on pull_request_review_comment events */
+  start_line?: number | null;
 }
 
 export interface GitHubReview {

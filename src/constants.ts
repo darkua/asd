@@ -39,3 +39,4 @@ export const GITHUB_BOT_SIGNATURE = "<!-- jira-ai-worker -->";
 export const GITHUB_CODERABBIT_USERNAME = "coderabbitai[bot]";
 export const GITHUB_MAX_STATUS_COMMENT_LENGTH = 600;
 export const GITHUB_WEBHOOK_MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB — GitHub payloads are typically < 256 KB
+export const GITHUB_REVIEW_ACK_MESSAGE = "[AGENT] Working on this feedback...";

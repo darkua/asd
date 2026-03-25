@@ -49,18 +49,26 @@ export class GitHubClient {
     return this.request<GitHubReviewComment[]>("GET", `/repos/${owner}/${repo}/pulls/${prNumber}/reviews/${reviewId}/comments`);
   }
 
-  /** Reply to a specific review comment on a PR. */
-  async replyToReviewComment(owner: string, repo: string, prNumber: number, commentId: number, body: string): Promise<void> {
+  /** Reply to a specific review comment on a PR. Returns the new comment ID. */
+  async replyToReviewComment(owner: string, repo: string, prNumber: number, commentId: number, body: string): Promise<number> {
     const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;
-    await this.request("POST", `/repos/${owner}/${repo}/pulls/${prNumber}/comments/${commentId}/replies`, { body: signed });
-    log.debug(`Replied to review comment ${commentId} on ${owner}/${repo}#${prNumber}`);
+    const result = await this.request<{ id: number }>("POST", `/repos/${owner}/${repo}/pulls/${prNumber}/comments/${commentId}/replies`, { body: signed });
+    log.debug(`Replied to review comment ${commentId} on ${owner}/${repo}#${prNumber} (new id: ${result.id})`);
+    return result.id;
   }
 
-  /** Edit an existing comment. */
+  /** Edit an existing issue comment. */
   async editComment(owner: string, repo: string, commentId: number, body: string): Promise<void> {
     const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;
     await this.request("PATCH", `/repos/${owner}/${repo}/issues/comments/${commentId}`, { body: signed });
     log.debug(`Edited comment ${commentId} on ${owner}/${repo}`);
+  }
+
+  /** Edit an existing pull request review comment. */
+  async editReviewComment(owner: string, repo: string, commentId: number, body: string): Promise<void> {
+    const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;
+    await this.request("PATCH", `/repos/${owner}/${repo}/pulls/comments/${commentId}`, { body: signed });
+    log.debug(`Edited review comment ${commentId} on ${owner}/${repo}`);
   }
 
   /**

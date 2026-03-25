@@ -3,10 +3,10 @@ import type { TaskQueryStore } from "../../ports/store.js";
 import type { StoredTask } from "../../ports/types.js";
 import { GitHubClient } from "./github-client.js";
 import { GitHubWebhookHandler, type WebhookEventHandler } from "./github-webhook-handler.js";
-import type { GitHubWebhookPayload, GitHubReview, GitHubReviewComment, PrRef } from "./github-types.js";
+import type { GitHubWebhookPayload, GitHubComment, GitHubReview, GitHubReviewComment, PrRef } from "./github-types.js";
 import { createLogger } from "../../logger.js";
 import { toErrorMessage } from "../../utils/errors.js";
-import { GITHUB_BOT_SIGNATURE, GITHUB_CODERABBIT_USERNAME, GITHUB_MAX_STATUS_COMMENT_LENGTH, CANCEL_COMMANDS } from "../../constants.js";
+import { GITHUB_BOT_SIGNATURE, GITHUB_CODERABBIT_USERNAME, GITHUB_MAX_STATUS_COMMENT_LENGTH, GITHUB_REVIEW_ACK_MESSAGE, CANCEL_COMMANDS } from "../../constants.js";
 import { cleanReviewBody, cleanCommentBody } from "./review-cleaner.js";
 
 const log = createLogger();
@@ -108,17 +108,23 @@ export class GitHubListener implements FeedbackListener {
       return;
     }
 
-    const replyFn = this.createReplyFn(prRef);
+    // Immediately acknowledge in each review comment thread
+    await this.ackReviewComments(prRef, allComments);
+
+    // Reply in the review comment thread if there are line comments, otherwise fall back to PR-level
+    const replyFn = allComments.length > 0
+      ? this.createReviewReplyFn(prRef, allComments[0].id)
+      : this.createReplyFn(prRef);
+
+    const onCompleteFn = this.createReviewCompleteFn(prRef, allComments);
 
     await this.feedbackHandler({
       taskKey: task.key,
       feedback,
       mode: "fix",
       replyFn,
+      onCompleteFn,
     });
-
-    // Reply to each review comment confirming it was addressed
-    await this.replyToReviewComments(prRef, allComments);
   }
 
   // ─── Issue Comment Handling (commands + text feedback) ───
@@ -164,13 +170,37 @@ export class GitHubListener implements FeedbackListener {
       return;
     }
 
-    const replyFn = this.createReplyFn(prRef);
+    // Enrich feedback with file/line context for review comments
+    const enrichedFeedback = this.enrichWithFileContext(comment, feedback);
+
+    // Immediately acknowledge in the review comment thread
+    if (eventType === "pull_request_review_comment" && comment.id) {
+      await this.client.replyToReviewComment(prRef.owner, prRef.repo, prRef.number, comment.id, GITHUB_REVIEW_ACK_MESSAGE);
+    }
+
+    // Reply in the review comment thread if this is a review comment, otherwise PR-level
+    const replyFn = eventType === "pull_request_review_comment" && comment.id
+      ? this.createReviewReplyFn(prRef, comment.id)
+      : this.createReplyFn(prRef);
+
+    // Build completion callback for review comments
+    const onCompleteFn = eventType === "pull_request_review_comment" && comment.path
+      ? this.createReviewCompleteFn(prRef, [{
+          id: comment.id,
+          body: comment.body,
+          path: comment.path,
+          line: comment.line ?? null,
+          start_line: comment.start_line ?? null,
+          user: comment.user,
+        }])
+      : undefined;
 
     await this.feedbackHandler({
       taskKey: task.key,
-      feedback,
+      feedback: enrichedFeedback,
       mode,
       replyFn,
+      onCompleteFn,
     });
   }
 
@@ -187,6 +217,21 @@ export class GitHubListener implements FeedbackListener {
         await this.client.editComment(prRef.owner, prRef.repo, commentId, truncated);
       } else {
         commentId = await this.client.postComment(prRef.owner, prRef.repo, prRef.number, truncated);
+      }
+    };
+  }
+
+  /** Create a reply function that replies in a review comment thread. First call replies, subsequent calls edit. */
+  private createReviewReplyFn(prRef: PrRef, reviewCommentId: number): (text: string) => Promise<void> {
+    let replyId: number | null = null;
+    return async (text: string): Promise<void> => {
+      const truncated = text.length > GITHUB_MAX_STATUS_COMMENT_LENGTH
+        ? text.slice(0, GITHUB_MAX_STATUS_COMMENT_LENGTH) + "\n\n…(truncated)"
+        : text;
+      if (replyId) {
+        await this.client.editReviewComment(prRef.owner, prRef.repo, replyId, truncated);
+      } else {
+        replyId = await this.client.replyToReviewComment(prRef.owner, prRef.repo, prRef.number, reviewCommentId, truncated);
       }
     };
   }
@@ -221,6 +266,22 @@ export class GitHubListener implements FeedbackListener {
     if (!this.config.botUsername) return trimmed;
     const pattern = new RegExp(`^@?${this.config.botUsername}\\s+`, "i");
     return trimmed.replace(pattern, "").trim();
+  }
+
+  /** Enrich feedback text with file/line context from review comments. */
+  private enrichWithFileContext(comment: GitHubComment, feedback: string): string {
+    if (!comment.path) return feedback;
+
+    const lineInfo = comment.start_line && comment.line
+      ? `lines ${comment.start_line}-${comment.line}`
+      : comment.line
+        ? `line ${comment.line}`
+        : "";
+    const header = lineInfo
+      ? `### File: ${comment.path} (${lineInfo})`
+      : `### File: ${comment.path}`;
+
+    return `${header}\n${feedback}`;
   }
 
   private parseComment(text: string): { feedback: string; mode: "fix" | "redo"; isCommand: boolean } {
@@ -277,6 +338,51 @@ export class GitHubListener implements FeedbackListener {
       feedback: parts.length > 0 ? parts.join("\n\n") : null,
       allComments,
     };
+  }
+
+  /** Immediately acknowledge each review comment so the author sees we're working on it. */
+  private async ackReviewComments(prRef: PrRef, comments: GitHubReviewComment[]): Promise<void> {
+    const results = await Promise.allSettled(
+      comments.map((comment) =>
+        this.client.replyToReviewComment(
+          prRef.owner, prRef.repo, prRef.number, comment.id,
+          GITHUB_REVIEW_ACK_MESSAGE,
+        ),
+      ),
+    );
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === "rejected") {
+        log.warn(`Failed to ack review comment ${comments[i].id}: ${toErrorMessage((results[i] as PromiseRejectedResult).reason)}`);
+      }
+    }
+  }
+
+  /** Create a completion callback that replies to review comments with success/failure. */
+  private createReviewCompleteFn(prRef: PrRef, comments: GitHubReviewComment[]): (success: boolean) => Promise<void> {
+    return async (success: boolean) => {
+      if (success) {
+        await this.replyToReviewComments(prRef, comments);
+      } else {
+        await this.failReviewComments(prRef, comments);
+      }
+    };
+  }
+
+  /** Reply to each review comment confirming feedback failed. */
+  private async failReviewComments(prRef: PrRef, comments: GitHubReviewComment[]): Promise<void> {
+    const results = await Promise.allSettled(
+      comments.map((comment) =>
+        this.client.replyToReviewComment(
+          prRef.owner, prRef.repo, prRef.number, comment.id,
+          "Failed to apply this feedback. Check the PR for details.",
+        ),
+      ),
+    );
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === "rejected") {
+        log.warn(`Failed to reply failure to review comment ${comments[i].id}: ${toErrorMessage((results[i] as PromiseRejectedResult).reason)}`);
+      }
+    }
   }
 
   /** Reply to each review comment confirming it was addressed. */

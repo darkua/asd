@@ -159,17 +159,26 @@ export class Worker {
     // Queue if another task is processing
     if (this.lockManager.hasOtherLock(raw.taskKey)) {
       logger.info(`Another task is processing, queuing feedback for ${raw.taskKey}`);
-      this.lockManager.enqueue({ taskKey: raw.taskKey, feedback, mode, replyFn: raw.replyFn });
+      this.lockManager.enqueue({ taskKey: raw.taskKey, feedback, mode, replyFn: raw.replyFn, onCompleteFn: raw.onCompleteFn });
       return;
     }
 
+    let success = false;
     await this.lockManager.withLock(raw.taskKey, async () => {
       try {
         await this.pipeline.handleFeedback(raw.taskKey, feedback, mode);
+        success = true;
       } catch (err) {
         await raw.replyFn(`Feedback processing failed: ${toErrorMessage(err)}`);
       }
     });
+
+    if (raw.onCompleteFn) {
+      await raw.onCompleteFn(success).catch((err) => {
+        logger.warn(`onCompleteFn error for ${raw.taskKey}: ${toErrorMessage(err)}`);
+      });
+    }
+
     await this.lockManager.drainQueue(this.pipeline);
   }
 
