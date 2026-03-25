@@ -45,7 +45,7 @@ export class JiraSource implements TaskSource {
   async poll(): Promise<TaskInfo[]> {
     const jql = [
       `project = "${this.config.project}"`,
-      `summary ~ "[${this.config.triggerLabel}]"`,
+      `labels = "${this.config.triggerLabel}"`,
       `status = "To Do"`,
     ].join(" AND ");
 
