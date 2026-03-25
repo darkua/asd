@@ -67,7 +67,9 @@ export class FeedbackCommandHandler {
 
     // Increment round
     const round = store.incrementFeedbackRound(key);
-    await raw.replyFn(`Processing feedback (round ${round}, mode: ${raw.mode})...`);
+    await raw.replyFn(
+      `Processing feedback (round ${round}, mode: ${raw.mode}) ${raw.feedback}`,
+    );
 
     return { handled: false, feedback: raw.feedback, mode: raw.mode };
   }
@@ -101,9 +103,19 @@ export class FeedbackCommandHandler {
     }
     log.info(`Retry requested for ${key}`);
     this.deps.store.resetTask(key);
-    try { this.deps.vcs.removeWorktree(key); } catch { /* ignore */ }
-    try { this.deps.vcs.deleteBranch(key); } catch { /* ignore */ }
-    await replyFn("Task reset and branch cleaned up. Will be picked up in the next poll cycle.");
+    try {
+      this.deps.vcs.removeWorktree(key);
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.deps.vcs.deleteBranch(key);
+    } catch {
+      /* ignore */
+    }
+    await replyFn(
+      "Task reset and branch cleaned up. Will be picked up in the next poll cycle.",
+    );
     return { handled: true };
   }
 
