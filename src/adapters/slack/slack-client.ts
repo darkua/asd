@@ -1,12 +1,28 @@
-import { App, LogLevel } from "@slack/bolt";
+// CJS packages need default import for Node ESM compatibility
+import { createRequire } from "node:module";
+const _require = createRequire(import.meta.url);
+
+const { App, LogLevel }: typeof import("@slack/bolt") = _require("@slack/bolt");
+
 import { createLogger } from "../../logger.js";
+import { toErrorMessage } from "../../utils/errors.js";
 
 const log = createLogger();
 
+/**
+ * Lightweight Slack block type. Bolt's own block types are unavailable due to
+ * CJS/ESM interop, so `as any` casts are used when passing blocks to Bolt APIs.
+ */
 export interface SlackBlock {
   type: string;
   text?: { type: string; text: string };
-  elements?: Array<{ type: string; text?: string | { type: string; text: string }; url?: string }>;
+  elements?: Array<{
+    type: string;
+    text?: string | { type: string; text: string };
+    action_id?: string;
+    value?: string;
+    url?: string;
+  }>;
   fields?: Array<{ type: string; text: string }>;
 }
 
@@ -25,7 +41,7 @@ export class SlackClient {
   readonly channel: string;
   readonly webhookUrl: string;
 
-  private app: App | null = null;
+  private app: InstanceType<typeof App> | null = null;
   private botUserId: string | null = null;
   private readonly config: SlackClientConfig;
 
@@ -62,17 +78,22 @@ export class SlackClient {
     log.info(`Slack bot connected as user ${this.botUserId}`);
 
     // Log ALL incoming events for diagnostics
-    this.app.use(async (args) => {
-      const event = (args as any).event;
+    // Bolt middleware types are lost due to CJS/ESM interop via createRequire
+    this.app.use(async (args: any) => {
+      const event = args.event;
       if (event) {
-        log.debug(`Slack event received: type=${event.type}, subtype=${event.subtype || "none"}`);
+        log.debug(
+          `Slack event received: type=${event.type}, subtype=${event.subtype || "none"}`,
+        );
       }
       await args.next();
     });
 
     await this.app.start();
     log.info("Slack Bot started in Socket Mode");
-    log.info("NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)");
+    log.info(
+      "NOTE: Ensure Slack App has Event Subscriptions enabled: message.channels (public) and/or message.groups (private)",
+    );
   }
 
   async stop(): Promise<void> {
@@ -86,9 +107,12 @@ export class SlackClient {
   onMessage(handler: MessageHandler): void {
     if (!this.app) return;
 
-    this.app.message(async ({ message }) => {
+    // Bolt handler types lost due to CJS/ESM interop
+    this.app.message(async ({ message }: any) => {
       const msg = message as SlackMessageEvent;
-      log.debug(`app.message() fired: ts=${msg.ts}, thread_ts=${msg.thread_ts || "none"}`);
+      log.debug(
+        `app.message() fired: ts=${msg.ts}, thread_ts=${msg.thread_ts || "none"}`,
+      );
       await handler(msg);
     });
   }
@@ -139,27 +163,35 @@ export class SlackClient {
         text: text || "",
       });
     } catch (err) {
-      log.warn(`Failed to update Slack message: ${err}`);
+      log.warn(`Failed to update Slack message: ${toErrorMessage(err)}`);
     }
   }
 
   onAction(actionId: string, handler: (payload: any) => Promise<void>): void {
     if (!this.app) return;
-    this.app.action(actionId, async ({ ack, body, action }) => {
+    // Bolt handler types lost due to CJS/ESM interop
+    this.app.action(actionId, async ({ ack, body, action }: any) => {
       await ack();
       await handler({ body, action });
     });
   }
 
-  onViewSubmission(callbackId: string, handler: (payload: any) => Promise<void>): void {
+  onViewSubmission(
+    callbackId: string,
+    handler: (payload: any) => Promise<void>,
+  ): void {
     if (!this.app) return;
-    this.app.view(callbackId, async ({ ack, body, view }) => {
+    // Bolt handler types lost due to CJS/ESM interop
+    this.app.view(callbackId, async ({ ack, body, view }: any) => {
       await ack();
       await handler({ body, view });
     });
   }
 
-  async openModal(triggerId: string, view: Record<string, unknown>): Promise<void> {
+  async openModal(
+    triggerId: string,
+    view: Record<string, unknown>,
+  ): Promise<void> {
     if (!this.app) return;
     await this.app.client.views.open({
       trigger_id: triggerId,
@@ -196,7 +228,7 @@ export class SlackClient {
         log.warn(`Slack webhook returned ${response.status}`);
       }
     } catch (err) {
-      log.warn(`Slack webhook notification failed: ${err}`);
+      log.warn(`Slack webhook notification failed: ${toErrorMessage(err)}`);
     }
   }
 }

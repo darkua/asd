@@ -9,10 +9,6 @@ import type { TaskInfo, AIResult, ThreadRef, ProgressEvent } from "../ports/type
 import { PROGRESS_THROTTLE_MS } from "../constants.js";
 import { toErrorMessage } from "../utils/errors.js";
 
-interface PipelineConfig {
-  maxFeedbackRounds: number;
-}
-
 export class TaskPipeline {
   constructor(
     private ai: AIProvider,
@@ -20,7 +16,6 @@ export class TaskPipeline {
     private notifier: Notifier,
     private store: Store,
     private vcs: VCS,
-    private config: PipelineConfig,
   ) {}
 
   async processTask(task: TaskInfo): Promise<void> {
@@ -136,14 +131,12 @@ export class TaskPipeline {
       }
 
       const round = taskData.feedbackRound || 1;
-      const maxRounds = this.config.maxFeedbackRounds;
 
       const progressCallback = this.createProgressCallback(thread);
       const result = await this.ai.runWithFeedback(taskInfo, workDir, {
         feedback,
         mode,
         round,
-        maxRounds,
       }, progressCallback);
 
       if (result.costUsd != null) {

@@ -3,6 +3,7 @@ import type { TaskInfo } from "../../ports/types.js";
 import { JiraClient } from "./jira-client.js";
 import { extractText } from "./adf-parser.js";
 import { createLogger } from "../../logger.js";
+import { toErrorMessage } from "../../utils/errors.js";
 
 interface JiraSourceConfig {
   baseUrl: string;
@@ -45,7 +46,7 @@ export class JiraSource implements TaskSource {
   async poll(): Promise<TaskInfo[]> {
     const jql = [
       `project = "${this.config.project}"`,
-      `summary ~ "[${this.config.triggerLabel}]"`,
+      `labels = "${this.config.triggerLabel}"`,
       `status = "To Do"`,
     ].join(" AND ");
 
@@ -117,7 +118,7 @@ export class JiraSource implements TaskSource {
 
       this.log.info(`Transitioned ${key} → ${targetStatus}`);
     } catch (err) {
-      this.log.warn(`Failed to transition ${key}: ${err}`);
+      this.log.warn(`Failed to transition ${key}: ${toErrorMessage(err)}`);
     }
   }
 }

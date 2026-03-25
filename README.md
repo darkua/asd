@@ -97,6 +97,7 @@ npm run worker:reset-task -- MP-123  # Reset single task
 ## Creating Tasks for the AI
 
 In JIRA, create a ticket with:
+
 1. **Summary** containing `[AI-GEN]`
 2. **Status**: To Do
 3. **Description**: Clear, detailed implementation requirements
@@ -111,13 +112,13 @@ All task interactions happen through **interactive buttons** — not text comman
 
 After a task completes or fails, buttons appear in the thread:
 
-| Button | Action |
-|--------|--------|
-| 🔧 **Fix** | Opens modal — type what should change |
-| 🔄 **Redo** | Opens modal — type instructions for fresh implementation |
-| 📊 **Status** | Shows task info + re-posts buttons |
-| 🔁 **Retry** | Resets failed task (failed tasks only) |
-| 🛑 **Cancel** | Kills running task |
+| Button        | Action                                                   |
+| ------------- | -------------------------------------------------------- |
+| 🔧 **Fix**    | Opens modal — type what should change                    |
+| 🔄 **Redo**   | Opens modal — type instructions for fresh implementation |
+| 📊 **Status** | Shows task info + re-posts buttons                       |
+| 🔁 **Retry**  | Resets failed task (failed tasks only)                   |
+| 🛑 **Cancel** | Kills running task                                       |
 
 While the agent is processing feedback, buttons are replaced with **Cancel only**. Full buttons re-appear when work finishes.
 
@@ -152,26 +153,26 @@ failed → processing (Retry clicked)
 
 ### Required
 
-| Variable | Description |
-|----------|-------------|
-| `JIRA_BASE_URL` | Atlassian instance URL |
-| `JIRA_EMAIL` | Your Atlassian email |
-| `JIRA_API_TOKEN` | Atlassian API token |
-| `JIRA_PROJECT_KEY` | Project key (e.g. MP) |
-| `REPO_PATH` | Absolute path to git repo |
+| Variable           | Description               |
+| ------------------ | ------------------------- |
+| `JIRA_BASE_URL`    | Atlassian instance URL    |
+| `JIRA_EMAIL`       | Your Atlassian email      |
+| `JIRA_API_TOKEN`   | Atlassian API token       |
+| `JIRA_PROJECT_KEY` | Project key (e.g. MP)     |
+| `REPO_PATH`        | Absolute path to git repo |
 
 ### Optional
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JIRA_TRIGGER_LABEL` | `AI-GEN` | Label to trigger processing |
-| `JIRA_DONE_STATUS` | `In Review` | Status after PR creation |
-| `REPO_BASE_BRANCH` | `develop` | Base branch for features |
-| `CLAUDE_MAX_TURNS` | `100` | Max agent iterations per task |
-| `CLAUDE_TIMEOUT_MS` | `600000` | Timeout per task (10 min) |
-| `POLL_INTERVAL_MS` | `900000` | Poll interval (15 min) |
-| `MAX_CONCURRENT` | `1` | Parallel task processing |
-| `HEALTH_PORT` | `0` | Health check HTTP port (0 = disabled) |
+| Variable             | Default     | Description                           |
+| -------------------- | ----------- | ------------------------------------- |
+| `JIRA_TRIGGER_LABEL` | `AI-GEN`    | Label to trigger processing           |
+| `JIRA_DONE_STATUS`   | `In Review` | Status after PR creation              |
+| `REPO_BASE_BRANCH`   | `develop`   | Base branch for features              |
+| `CLAUDE_MAX_TURNS`   | `100`       | Max agent iterations per task         |
+| `CLAUDE_TIMEOUT_MS`  | `600000`    | Timeout per task (10 min)             |
+| `POLL_INTERVAL_MS`   | `900000`    | Poll interval (15 min)                |
+| `MAX_CONCURRENT`     | `1`         | Parallel task processing              |
+| `HEALTH_PORT`        | `0`         | Health check HTTP port (0 = disabled) |
 
 ### Slack (Optional)
 
@@ -187,12 +188,62 @@ Set `SLACK_WEBHOOK_URL` to receive notifications when tasks complete or fail.
 4. Enable **Event Subscriptions** → Subscribe to bot events: `message.channels` (public) or `message.groups` (private)
 5. Install the app to your workspace
 
-| Variable | Description |
-|----------|-------------|
+| Variable          | Description                       |
+| ----------------- | --------------------------------- |
 | `SLACK_BOT_TOKEN` | Bot User OAuth Token (`xoxb-...`) |
-| `SLACK_APP_TOKEN` | App-Level Token (`xapp-...`) |
-| `SLACK_CHANNEL` | Channel ID for notifications |
-| `MAX_FEEDBACK_ROUNDS` | Max rounds before asking to continue (default: 3) |
+| `SLACK_APP_TOKEN` | App-Level Token (`xapp-...`)      |
+| `SLACK_CHANNEL`   | Channel ID for notifications      |
+
+### GitHub Integration (Optional)
+
+Enable GitHub PR comment feedback — the bot listens for PR review comments and `@mention` commands directly on pull requests.
+
+#### Setup
+
+1. Set `GITHUB_INTEGRATION_ENABLED=true` in `.env`
+2. Set `HEALTH_PORT` to a non-zero value (e.g. `9090`) — the webhook endpoint runs on the health server
+3. Provide a GitHub token via `GITHUB_TOKEN` or `GH_TOKEN` (needs `repo` scope for posting comments)
+4. Create a webhook on your GitHub repo (or org):
+   - **Payload URL:** `http://<your-host>:<HEALTH_PORT>/webhooks/github`
+   - **Content type:** `application/json`
+   - **Secret:** set a random string and put the same value in `GITHUB_WEBHOOK_SECRET`
+   - **Events:** select "Issue comments", "Pull request reviews", and "Pull request review comments"
+5. Optionally set `GITHUB_BOT_USERNAME` to the GitHub username of your bot — this enables `@mention` command parsing and strips the prefix from feedback text
+
+#### Exposing the webhook
+
+The webhook endpoint must be reachable from GitHub. Options:
+
+- **Production server** with a public IP or behind a reverse proxy
+- **ngrok** for development: `ngrok http 9090`, then use the ngrok URL as the Payload URL
+- **Cloudflare Tunnel**, **Tailscale Funnel**, or similar
+
+#### Environment variables
+
+| Variable                     | Default | Description                                    |
+| ---------------------------- | ------- | ---------------------------------------------- |
+| `GITHUB_INTEGRATION_ENABLED` | `false` | Set to `true` to enable                        |
+| `GITHUB_TOKEN` / `GH_TOKEN`  | —       | GitHub personal access token (`repo` scope)    |
+| `GITHUB_WEBHOOK_SECRET`      | —       | Secret for HMAC signature verification         |
+| `GITHUB_BOT_USERNAME`        | —       | Bot's GitHub username (for `@mention` parsing) |
+
+#### PR commands via `@mention`
+
+Comment on a PR tracked by the worker with `@<bot-username> <command>`:
+
+| Command                 | Action                                            |
+| ----------------------- | ------------------------------------------------- |
+| `@bot fix: <feedback>`  | Apply targeted fix based on feedback              |
+| `@bot redo: <feedback>` | Start fresh implementation with feedback          |
+| `@bot status`           | Show task status as a PR comment                  |
+| `@bot coderabbit`       | Fetch all CodeRabbit review comments and fix them |
+| `@bot cancel`           | Cancel the running task                           |
+| `@bot retry`            | Reset a failed task for reprocessing              |
+| `@bot <bare text>`      | Treated as `fix:` feedback                        |
+
+#### Automatic review handling
+
+When a PR review is submitted (e.g. "Request changes" from a reviewer or from CodeRabbit), the worker automatically picks up the review comments as feedback and applies fixes. Each line-level comment gets a reply confirming it was addressed.
 
 ## Safety & Security
 
@@ -220,24 +271,28 @@ curl http://localhost:9090/health
 ## Troubleshooting
 
 **Claude uses API key instead of MAX:**
+
 ```bash
 unset ANTHROPIC_API_KEY
 claude login
 ```
 
 **Slack feedback not working:**
+
 - Check `SLACK_CHANNEL` is set (Channel ID, not name)
 - Verify Event Subscriptions are enabled (`message.channels` or `message.groups`)
 - Check logs for `Slack event received:` messages — if missing, events aren't arriving
 - After adding scopes/events, **reinstall the app** in your workspace
 
 **Task not picked up after reset:**
+
 - Branch may still exist: `git branch -D feat/mp-xxx && git push origin --delete feat/mp-xxx`
 
 **"No transition available" warnings:**
 Your JIRA workflow uses different status names. Update `JIRA_DONE_STATUS` in `.env`.
 
 **Worktree conflicts:**
+
 ```bash
 git worktree prune
 rm -rf /path/to/repo/../.worktrees/
