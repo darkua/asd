@@ -17,6 +17,7 @@ export const INSTALL_TIMEOUT_MS = 300_000;
 // ─── Display Constants ──────────────────────────────────────
 export const MAX_TASK_LIST_DISPLAY = 15;
 export const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024;
+export const SLACK_ERROR_MAX_LENGTH = 2900;
 
 // ─── Task Status ────────────────────────────────────────────
 export type TaskStatus = "processing" | "review" | "done" | "failed";
@@ -37,3 +38,4 @@ export const GITHUB_API_BASE = "https://api.github.com";
 export const GITHUB_BOT_SIGNATURE = "<!-- jira-ai-worker -->";
 export const GITHUB_CODERABBIT_USERNAME = "coderabbitai[bot]";
 export const GITHUB_MAX_STATUS_COMMENT_LENGTH = 600;
+export const GITHUB_WEBHOOK_MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB — GitHub payloads are typically < 256 KB

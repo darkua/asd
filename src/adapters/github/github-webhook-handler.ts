@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { GITHUB_WEBHOOK_MAX_BODY_BYTES } from "../../constants.js";
 import { createLogger } from "../../logger.js";
 import { toErrorMessage } from "../../utils/errors.js";
 import type { GitHubWebhookPayload } from "./github-types.js";
@@ -17,21 +18,43 @@ export class GitHubWebhookHandler {
   /** HTTP request handler — register on HealthServer at POST /webhooks/github. */
   handle(req: IncomingMessage, res: ServerResponse): void {
     const chunks: Buffer[] = [];
+    let receivedBytes = 0;
+    let aborted = false;
 
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("data", (chunk: Buffer) => {
+      if (aborted) return;
+      receivedBytes += chunk.length;
+      if (receivedBytes > GITHUB_WEBHOOK_MAX_BODY_BYTES) {
+        aborted = true;
+        log.warn(`GitHub webhook body exceeded ${GITHUB_WEBHOOK_MAX_BODY_BYTES} bytes — rejecting`);
+        req.removeAllListeners("data");
+        req.removeAllListeners("end");
+        req.resume(); // drain remaining data
+        res.writeHead(413);
+        res.end("Payload Too Large");
+        return;
+      }
+      chunks.push(chunk);
+    });
 
     req.on("end", () => {
+      if (aborted) return;
       const rawBody = Buffer.concat(chunks);
 
-      // Verify signature if secret is configured
-      if (this.webhookSecret) {
-        const signature = req.headers["x-hub-signature-256"] as string | undefined;
-        if (!this.verifySignature(rawBody, signature)) {
-          log.warn("GitHub webhook signature verification failed");
-          res.writeHead(401);
-          res.end("Unauthorized");
-          return;
-        }
+      // Webhook secret is required — reject requests if not configured
+      if (!this.webhookSecret) {
+        log.warn("GitHub webhook secret is not configured — rejecting request");
+        res.writeHead(500);
+        res.end("Internal Server Error");
+        return;
+      }
+
+      const signature = req.headers["x-hub-signature-256"] as string | undefined;
+      if (!this.verifySignature(rawBody, signature)) {
+        log.warn("GitHub webhook signature verification failed");
+        res.writeHead(401);
+        res.end("Unauthorized");
+        return;
       }
 
       // Return 200 immediately — process asynchronously

@@ -43,6 +43,10 @@ export const config = {
     enabled: optional("GITHUB_INTEGRATION_ENABLED", "false") === "true",
     webhookSecret: optional("GITHUB_WEBHOOK_SECRET", ""),
     botUsername: optional("GITHUB_BOT_USERNAME", ""),
+    reviewBotUsers: optional("GITHUB_REVIEW_BOT_USERS", "coderabbitai[bot]")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
     token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
   },
 

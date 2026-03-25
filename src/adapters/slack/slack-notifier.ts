@@ -4,8 +4,14 @@ import { SlackClient, type SlackBlock } from "./slack-client.js";
 import { createLogger } from "../../logger.js";
 import { toErrorMessage } from "../../utils/errors.js";
 import { buildActionButtons } from "./slack-ui.js";
+import { SLACK_ERROR_MAX_LENGTH } from "../../constants.js";
 
 const log = createLogger();
+
+function truncateError(error: string): string {
+  if (error.length <= SLACK_ERROR_MAX_LENGTH) return error;
+  return error.slice(0, SLACK_ERROR_MAX_LENGTH) + "… [truncated]";
+}
 
 export class SlackNotifier implements Notifier {
   private readonly client: SlackClient;
@@ -135,7 +141,7 @@ export class SlackNotifier implements Notifier {
         await this.client.replyInThread(
           thread.channel,
           thread.id,
-          `❌ Implementation failed:\n\`\`\`${error}\`\`\``,
+          `❌ Implementation failed:\n\`\`\`${truncateError(error)}\`\`\``,
         );
 
         // Update main message
@@ -278,7 +284,7 @@ export class SlackNotifier implements Notifier {
       },
       {
         type: "section",
-        text: { type: "mrkdwn", text: `\`\`\`${error}\`\`\`` },
+        text: { type: "mrkdwn", text: `\`\`\`${truncateError(error)}\`\`\`` },
       },
       {
         type: "context",
