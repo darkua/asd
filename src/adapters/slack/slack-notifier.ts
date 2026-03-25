@@ -2,6 +2,7 @@ import type { Notifier } from "../../ports/notifier.js";
 import type { TaskInfo, AIResult, ThreadRef } from "../../ports/types.js";
 import { SlackClient, type SlackBlock } from "./slack-client.js";
 import { createLogger } from "../../logger.js";
+import { toErrorMessage } from "../../utils/errors.js";
 import { buildActionButtons } from "./slack-ui.js";
 
 const log = createLogger();
@@ -60,7 +61,7 @@ export class SlackNotifier implements Notifier {
       return { id: posted.ts, channel: posted.channel };
     } catch (err) {
       log.warn(
-        `Slack Bolt notification failed, falling back to webhook mode: ${err}`,
+        `Slack Bolt notification failed, falling back to webhook mode: ${toErrorMessage(err)}`,
       );
       return undefined;
     }
@@ -72,7 +73,7 @@ export class SlackNotifier implements Notifier {
     try {
       await this.client.replyInThread(thread.channel, thread.id, text);
     } catch (err) {
-      log.warn(`Slack thread status update failed: ${err}`);
+      log.warn(`Slack thread status update failed: ${toErrorMessage(err)}`);
     }
   }
 
@@ -113,7 +114,7 @@ export class SlackNotifier implements Notifier {
         return thread;
       } catch (err) {
         log.warn(
-          `Slack Bolt completion notification failed, falling back to webhook: ${err}`,
+          `Slack Bolt completion notification failed, falling back to webhook: ${toErrorMessage(err)}`,
         );
       }
     }
@@ -159,7 +160,7 @@ export class SlackNotifier implements Notifier {
         return thread;
       } catch (err) {
         log.warn(
-          `Slack Bolt failure notification failed, falling back to webhook: ${err}`,
+          `Slack Bolt failure notification failed, falling back to webhook: ${toErrorMessage(err)}`,
         );
       }
     }
@@ -174,7 +175,7 @@ export class SlackNotifier implements Notifier {
     try {
       await this.client.replyInThread(thread.channel, thread.id, text);
     } catch (err) {
-      log.warn(`Slack thread reply failed: ${err}`);
+      log.warn(`Slack thread reply failed: ${toErrorMessage(err)}`);
     }
   }
 
@@ -191,12 +192,12 @@ export class SlackNotifier implements Notifier {
           {
             type: "actions",
             elements: buildActionButtons(taskKey, status),
-          } as any,
+          },
         ],
         "Task actions",
       );
     } catch (err) {
-      log.warn(`Failed to post action buttons: ${err}`);
+      log.warn(`Failed to post action buttons: ${toErrorMessage(err)}`);
     }
   }
 

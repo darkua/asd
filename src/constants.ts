@@ -36,3 +36,4 @@ export const GITHUB_PROGRESS_THROTTLE_MS = 180_000; // 3 min — GitHub API rate
 export const GITHUB_API_BASE = "https://api.github.com";
 export const GITHUB_BOT_SIGNATURE = "<!-- jira-ai-worker -->";
 export const GITHUB_CODERABBIT_USERNAME = "coderabbitai[bot]";
+export const GITHUB_MAX_STATUS_COMMENT_LENGTH = 600;

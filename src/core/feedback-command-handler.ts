@@ -67,8 +67,11 @@ export class FeedbackCommandHandler {
 
     // Increment round
     const round = store.incrementFeedbackRound(key);
+    const feedbackPreview = raw.feedback.length > 100
+      ? raw.feedback.slice(0, 100) + "…"
+      : raw.feedback;
     await raw.replyFn(
-      `Processing feedback (round ${round}, mode: ${raw.mode}) ${raw.feedback}`,
+      `Processing feedback (round ${round}, mode: ${raw.mode}) ${feedbackPreview}`,
     );
 
     return { handled: false, feedback: raw.feedback, mode: raw.mode };

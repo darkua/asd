@@ -5,15 +5,22 @@ const _require = createRequire(import.meta.url);
 const { App, LogLevel }: typeof import("@slack/bolt") = _require("@slack/bolt");
 
 import { createLogger } from "../../logger.js";
+import { toErrorMessage } from "../../utils/errors.js";
 
 const log = createLogger();
 
+/**
+ * Lightweight Slack block type. Bolt's own block types are unavailable due to
+ * CJS/ESM interop, so `as any` casts are used when passing blocks to Bolt APIs.
+ */
 export interface SlackBlock {
   type: string;
   text?: { type: string; text: string };
   elements?: Array<{
     type: string;
     text?: string | { type: string; text: string };
+    action_id?: string;
+    value?: string;
     url?: string;
   }>;
   fields?: Array<{ type: string; text: string }>;
@@ -71,6 +78,7 @@ export class SlackClient {
     log.info(`Slack bot connected as user ${this.botUserId}`);
 
     // Log ALL incoming events for diagnostics
+    // Bolt middleware types are lost due to CJS/ESM interop via createRequire
     this.app.use(async (args: any) => {
       const event = args.event;
       if (event) {
@@ -99,6 +107,7 @@ export class SlackClient {
   onMessage(handler: MessageHandler): void {
     if (!this.app) return;
 
+    // Bolt handler types lost due to CJS/ESM interop
     this.app.message(async ({ message }: any) => {
       const msg = message as SlackMessageEvent;
       log.debug(
@@ -154,12 +163,13 @@ export class SlackClient {
         text: text || "",
       });
     } catch (err) {
-      log.warn(`Failed to update Slack message: ${err}`);
+      log.warn(`Failed to update Slack message: ${toErrorMessage(err)}`);
     }
   }
 
   onAction(actionId: string, handler: (payload: any) => Promise<void>): void {
     if (!this.app) return;
+    // Bolt handler types lost due to CJS/ESM interop
     this.app.action(actionId, async ({ ack, body, action }: any) => {
       await ack();
       await handler({ body, action });
@@ -171,6 +181,7 @@ export class SlackClient {
     handler: (payload: any) => Promise<void>,
   ): void {
     if (!this.app) return;
+    // Bolt handler types lost due to CJS/ESM interop
     this.app.view(callbackId, async ({ ack, body, view }: any) => {
       await ack();
       await handler({ body, view });
@@ -217,7 +228,7 @@ export class SlackClient {
         log.warn(`Slack webhook returned ${response.status}`);
       }
     } catch (err) {
-      log.warn(`Slack webhook notification failed: ${err}`);
+      log.warn(`Slack webhook notification failed: ${toErrorMessage(err)}`);
     }
   }
 }

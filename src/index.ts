@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { config } from "./config/config.js";
 import { logger } from "./logger.js";
+import { toErrorMessage } from "./utils/errors.js";
 
 // Adapters
 import { ClaudeProvider } from "./adapters/claude/claude-provider.js";
@@ -170,6 +171,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  logger.error(`Fatal: ${err}`);
+  logger.error(`Fatal: ${toErrorMessage(err)}`);
   process.exit(1);
 });

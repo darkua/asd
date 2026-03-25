@@ -6,13 +6,11 @@ import { GitHubWebhookHandler, type WebhookEventHandler } from "./github-webhook
 import type { GitHubWebhookPayload, GitHubReview, GitHubReviewComment, PrRef } from "./github-types.js";
 import { createLogger } from "../../logger.js";
 import { toErrorMessage } from "../../utils/errors.js";
-import { GITHUB_BOT_SIGNATURE, GITHUB_CODERABBIT_USERNAME, CANCEL_COMMANDS } from "../../constants.js";
+import { GITHUB_BOT_SIGNATURE, GITHUB_CODERABBIT_USERNAME, GITHUB_MAX_STATUS_COMMENT_LENGTH, CANCEL_COMMANDS } from "../../constants.js";
 import { cleanReviewBody, cleanCommentBody } from "./review-cleaner.js";
 
 const log = createLogger();
 
-/** Max chars for a status comment on GitHub (keeps PR tidy). */
-const MAX_STATUS_COMMENT_LENGTH = 600;
 
 export interface GitHubListenerConfig {
   botUsername: string;
@@ -182,8 +180,8 @@ export class GitHubListener implements FeedbackListener {
   private createReplyFn(prRef: PrRef): (text: string) => Promise<void> {
     let commentId: number | null = null;
     return async (text: string): Promise<void> => {
-      const truncated = text.length > MAX_STATUS_COMMENT_LENGTH
-        ? text.slice(0, MAX_STATUS_COMMENT_LENGTH) + "\n\n…(truncated)"
+      const truncated = text.length > GITHUB_MAX_STATUS_COMMENT_LENGTH
+        ? text.slice(0, GITHUB_MAX_STATUS_COMMENT_LENGTH) + "\n\n…(truncated)"
         : text;
       if (commentId) {
         await this.client.editComment(prRef.owner, prRef.repo, commentId, truncated);
@@ -283,16 +281,20 @@ export class GitHubListener implements FeedbackListener {
 
   /** Reply to each review comment confirming it was addressed. */
   private async replyToReviewComments(prRef: PrRef, comments: GitHubReviewComment[]): Promise<void> {
-    for (const comment of comments) {
-      try {
+    const results = await Promise.allSettled(
+      comments.map((comment) => {
         const lineRef = comment.line ? ` (line ${comment.line})` : "";
         const reply = `✅ Addressed in \`${comment.path}\`${lineRef}. See the latest push.`;
-        await this.client.replyToReviewComment(
+        return this.client.replyToReviewComment(
           prRef.owner, prRef.repo, prRef.number, comment.id,
           reply,
         );
-      } catch (err) {
-        log.warn(`Failed to reply to review comment ${comment.id}: ${toErrorMessage(err)}`);
+      }),
+    );
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === "rejected") {
+        log.warn(`Failed to reply to review comment ${comments[i].id}: ${toErrorMessage(result.reason)}`);
       }
     }
   }

@@ -110,7 +110,7 @@ export class Worker {
       try {
         this.cleanupStaleWorktrees();
       } catch (err) {
-        logger.warn(`Worktree cleanup error: ${err}`);
+        logger.warn(`Worktree cleanup error: ${toErrorMessage(err)}`);
       }
     }
 
@@ -142,7 +142,7 @@ export class Worker {
         }));
       }
     } catch (err) {
-      logger.error(`Poll cycle error: ${err}`);
+      logger.error(`Poll cycle error: ${toErrorMessage(err)}`);
     }
 
     const stats = this.store.getStats();
