@@ -17,14 +17,16 @@ export class SlackNotifier implements Notifier {
     const text = `JIRA AI Worker started.`;
 
     if (this.client.isActive && this.client.channel) {
-      await this.client.postMessage(this.client.channel, [
-        { type: "section", text: { type: "mrkdwn", text } },
-      ], text);
+      // await this.client.postMessage(
+      //   this.client.channel,
+      //   [{ type: "section", text: { type: "mrkdwn", text } }],
+      //   text,
+      // );
       return;
     }
 
     if (this.client.webhookUrl) {
-      await this.client.sendWebhook({ text });
+      // await this.client.sendWebhook({ text });
     }
   }
 
@@ -57,7 +59,9 @@ export class SlackNotifier implements Notifier {
 
       return { id: posted.ts, channel: posted.channel };
     } catch (err) {
-      log.warn(`Slack Bolt notification failed, falling back to webhook mode: ${err}`);
+      log.warn(
+        `Slack Bolt notification failed, falling back to webhook mode: ${err}`,
+      );
       return undefined;
     }
   }
@@ -88,22 +92,29 @@ export class SlackNotifier implements Notifier {
         );
 
         // Update main message
-        await this.client.updateMessage(thread.channel, thread.id, [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*👀 ${task.key}: ${task.summary} — Under Review*\nPriority: ${task.priority} · Type: ${task.issueType}`,
+        await this.client.updateMessage(
+          thread.channel,
+          thread.id,
+          [
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*👀 ${task.key}: ${task.summary} — Under Review*\nPriority: ${task.priority} · Type: ${task.issueType}`,
+              },
             },
-          },
-        ], `${task.key}: ${task.summary} — Under Review`);
+          ],
+          `${task.key}: ${task.summary} — Under Review`,
+        );
 
         // Post action buttons
         await this.postActionButtons(thread, task.key, "review");
 
         return thread;
       } catch (err) {
-        log.warn(`Slack Bolt completion notification failed, falling back to webhook: ${err}`);
+        log.warn(
+          `Slack Bolt completion notification failed, falling back to webhook: ${err}`,
+        );
       }
     }
 
@@ -123,26 +134,33 @@ export class SlackNotifier implements Notifier {
         await this.client.replyInThread(
           thread.channel,
           thread.id,
-          `❌ Implementation failed:\n\`\`\`${error.slice(0, 500)}\`\`\``,
+          `❌ Implementation failed:\n\`\`\`${error}\`\`\``,
         );
 
         // Update main message
-        await this.client.updateMessage(thread.channel, thread.id, [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*❌ ${task.key}: ${task.summary} — Failed*\nPriority: ${task.priority} · Type: ${task.issueType}`,
+        await this.client.updateMessage(
+          thread.channel,
+          thread.id,
+          [
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*❌ ${task.key}: ${task.summary} — Failed*\nPriority: ${task.priority} · Type: ${task.issueType}`,
+              },
             },
-          },
-        ], `${task.key}: ${task.summary} — Failed`);
+          ],
+          `${task.key}: ${task.summary} — Failed`,
+        );
 
         // Post action buttons
         await this.postActionButtons(thread, task.key, "failed");
 
         return thread;
       } catch (err) {
-        log.warn(`Slack Bolt failure notification failed, falling back to webhook: ${err}`);
+        log.warn(
+          `Slack Bolt failure notification failed, falling back to webhook: ${err}`,
+        );
       }
     }
 
@@ -160,11 +178,23 @@ export class SlackNotifier implements Notifier {
     }
   }
 
-  private async postActionButtons(thread: ThreadRef, taskKey: string, status: "review" | "failed"): Promise<void> {
+  private async postActionButtons(
+    thread: ThreadRef,
+    taskKey: string,
+    status: "review" | "failed",
+  ): Promise<void> {
     try {
-      await this.client.replyInThreadWithBlocks(thread.channel, thread.id, [
-        { type: "actions", elements: buildActionButtons(taskKey, status) } as any,
-      ], "Task actions");
+      await this.client.replyInThreadWithBlocks(
+        thread.channel,
+        thread.id,
+        [
+          {
+            type: "actions",
+            elements: buildActionButtons(taskKey, status),
+          } as any,
+        ],
+        "Task actions",
+      );
     } catch (err) {
       log.warn(`Failed to post action buttons: ${err}`);
     }
@@ -172,9 +202,16 @@ export class SlackNotifier implements Notifier {
 
   // ─── Private webhook fallbacks ──────────────────────────────
 
-  private async sendViaAvailableChannel(blocks: SlackBlock[], fallbackText: string): Promise<ThreadRef | undefined> {
+  private async sendViaAvailableChannel(
+    blocks: SlackBlock[],
+    fallbackText: string,
+  ): Promise<ThreadRef | undefined> {
     if (this.client.isActive && this.client.channel) {
-      const posted = await this.client.postMessage(this.client.channel, blocks, fallbackText);
+      const posted = await this.client.postMessage(
+        this.client.channel,
+        blocks,
+        fallbackText,
+      );
       return { id: posted.ts, channel: posted.channel };
     }
 
@@ -185,24 +222,76 @@ export class SlackNotifier implements Notifier {
     return undefined;
   }
 
-  private async notifySuccessWebhook(task: TaskInfo, result: AIResult): Promise<ThreadRef | undefined> {
+  private async notifySuccessWebhook(
+    task: TaskInfo,
+    result: AIResult,
+  ): Promise<ThreadRef | undefined> {
     const blocks: SlackBlock[] = [
-      { type: "section", text: { type: "mrkdwn", text: `*AI implementation complete: <${task.url}|${task.key}>*\n${task.summary}` } },
-      { type: "section", fields: [
-        { type: "mrkdwn", text: `*PR:*\n<${result.prUrl}|View Pull Request>` },
-        { type: "mrkdwn", text: `*Duration:*\n${(result.durationMs / 1000).toFixed(0)}s` },
-      ] },
-      { type: "context", elements: [{ type: "mrkdwn", text: "Auto-generated by Claude Code. Reply in this thread to provide feedback." }] },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*AI implementation complete: <${task.url}|${task.key}>*\n${task.summary}`,
+        },
+      },
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: `*PR:*\n<${result.prUrl}|View Pull Request>`,
+          },
+          {
+            type: "mrkdwn",
+            text: `*Duration:*\n${(result.durationMs / 1000).toFixed(0)}s`,
+          },
+        ],
+      },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: "Auto-generated by Claude Code. Reply in this thread to provide feedback.",
+          },
+        ],
+      },
     ];
-    return this.sendViaAvailableChannel(blocks, `AI implementation complete: ${task.key}`);
+    return this.sendViaAvailableChannel(
+      blocks,
+      `AI implementation complete: ${task.key}`,
+    );
   }
 
-  private async notifyFailureWebhook(task: TaskInfo, error: string): Promise<ThreadRef | undefined> {
+  private async notifyFailureWebhook(
+    task: TaskInfo,
+    error: string,
+  ): Promise<ThreadRef | undefined> {
     const blocks: SlackBlock[] = [
-      { type: "section", text: { type: "mrkdwn", text: `*AI implementation failed: <${task.url}|${task.key}>*\n${task.summary}` } },
-      { type: "section", text: { type: "mrkdwn", text: `\`\`\`${error.slice(0, 500)}\`\`\`` } },
-      { type: "context", elements: [{ type: "mrkdwn", text: "Manual intervention required. Reply in this thread to provide feedback." }] },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*AI implementation failed: <${task.url}|${task.key}>*\n${task.summary}`,
+        },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `\`\`\`${error}\`\`\`` },
+      },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: "Manual intervention required. Reply in this thread to provide feedback.",
+          },
+        ],
+      },
     ];
-    return this.sendViaAvailableChannel(blocks, `AI implementation failed: ${task.key}`);
+    return this.sendViaAvailableChannel(
+      blocks,
+      `AI implementation failed: ${task.key}`,
+    );
   }
 }
