@@ -3,12 +3,7 @@ import type { Store } from "../ports/store.js";
 import type { VCS } from "../ports/vcs.js";
 import type { AIProvider } from "../ports/ai-provider.js";
 import type { RawFeedback, StoredTask, WorkerStatus } from "../ports/types.js";
-import {
-  TWENTY_FOUR_HOURS_MS,
-  CANCEL_COMMANDS,
-  CONFIRM_YES_COMMANDS,
-  CONFIRM_NO_COMMANDS,
-} from "../constants.js";
+import { CANCEL_COMMANDS } from "../constants.js";
 
 export interface FeedbackCommandResult {
   handled: boolean;
@@ -20,12 +15,11 @@ interface FeedbackCommandDeps {
   store: Store;
   vcs: VCS;
   ai: AIProvider;
-  maxFeedbackRounds: number;
   getStatus: () => WorkerStatus;
 }
 
 /**
- * Handles special commands and feedback state machine (round limits, confirmations).
+ * Handles special commands and prepares feedback for processing.
  * Returns whether the command was fully handled (no further processing needed).
  */
 export class FeedbackCommandHandler {
@@ -34,7 +28,7 @@ export class FeedbackCommandHandler {
   async handle(raw: RawFeedback): Promise<FeedbackCommandResult> {
     const log = createLogger(raw.taskKey);
     const key = raw.taskKey;
-    const { store, vcs, ai } = this.deps;
+    const { store, ai } = this.deps;
 
     const task = store.getTask(key);
     if (!task) {
@@ -58,33 +52,6 @@ export class FeedbackCommandHandler {
       return this.handleStatus(key, task, raw.replyFn);
     }
 
-    if (lowerFeedback === "reopen") {
-      return this.handleReopen(key, task, raw.replyFn, log);
-    }
-
-    // ─── State Guards ────────────────────────────────────────
-    if (task.feedbackClosed) {
-      await raw.replyFn("Feedback for this task has been closed.");
-      return { handled: true };
-    }
-
-    if (task.limitReachedAt) {
-      return this.handleLimitConfirmation(key, task, raw);
-    }
-
-    // ─── Round Limit Check ───────────────────────────────────
-    const currentRound = (task.feedbackRound || 0) + 1;
-    const maxRounds = this.deps.maxFeedbackRounds;
-
-    if (currentRound > maxRounds && (currentRound - 1) % maxRounds === 0) {
-      store.setLimitReachedAt(key);
-      const totalMaxDisplay = currentRound - 1 + maxRounds;
-      await raw.replyFn(
-        `Reached limit of ${currentRound - 1} feedback rounds. Reply "tak" to continue for another ${maxRounds} rounds (up to ${totalMaxDisplay}), or "nie" to stop.`,
-      );
-      return { handled: true };
-    }
-
     // ─── Validate & Prepare ──────────────────────────────────
     if (!raw.feedback) {
       await raw.replyFn("Empty feedback — please describe what to change.");
@@ -100,7 +67,12 @@ export class FeedbackCommandHandler {
 
     // Increment round
     const round = store.incrementFeedbackRound(key);
-    await raw.replyFn(`Processing feedback (round ${round} of ${maxRounds}, mode: ${raw.mode})...`);
+    const feedbackPreview = raw.feedback.length > 100
+      ? raw.feedback.slice(0, 100) + "…"
+      : raw.feedback;
+    await raw.replyFn(
+      `Processing feedback (round ${round}, mode: ${raw.mode}) ${feedbackPreview}`,
+    );
 
     return { handled: false, feedback: raw.feedback, mode: raw.mode };
   }
@@ -134,9 +106,19 @@ export class FeedbackCommandHandler {
     }
     log.info(`Retry requested for ${key}`);
     this.deps.store.resetTask(key);
-    try { this.deps.vcs.removeWorktree(key); } catch { /* ignore */ }
-    try { this.deps.vcs.deleteBranch(key); } catch { /* ignore */ }
-    await replyFn("Task reset and branch cleaned up. Will be picked up in the next poll cycle.");
+    try {
+      this.deps.vcs.removeWorktree(key);
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.deps.vcs.deleteBranch(key);
+    } catch {
+      /* ignore */
+    }
+    await replyFn(
+      "Task reset and branch cleaned up. Will be picked up in the next poll cycle.",
+    );
     return { handled: true };
   }
 
@@ -153,51 +135,6 @@ export class FeedbackCommandHandler {
       `Queue: ${status.queueSize} pending`,
     ];
     await replyFn(lines.join("\n"));
-    return { handled: true };
-  }
-
-  private async handleReopen(
-    key: string,
-    task: StoredTask,
-    replyFn: (text: string) => Promise<void>,
-    log: ReturnType<typeof createLogger>,
-  ): Promise<FeedbackCommandResult> {
-    if (!task.feedbackClosed) {
-      await replyFn("Feedback is already open for this task.");
-      return { handled: true };
-    }
-    log.info(`Reopen requested for ${key}`);
-    this.deps.store.reopenFeedback(key);
-    await replyFn("Feedback reopened. Send your feedback.");
-    return { handled: true };
-  }
-
-  private async handleLimitConfirmation(
-    key: string,
-    task: StoredTask,
-    raw: RawFeedback,
-  ): Promise<FeedbackCommandResult> {
-    const limitTime = new Date(task.limitReachedAt!).getTime();
-
-    if (Date.now() - limitTime > TWENTY_FOUR_HOURS_MS) {
-      this.deps.store.setFeedbackClosed(key);
-      await raw.replyFn("No response within 24 hours — work on this task has been closed.");
-      return { handled: true };
-    }
-
-    const lower = raw.feedback.toLowerCase();
-    if ((CONFIRM_YES_COMMANDS as readonly string[]).includes(lower)) {
-      this.deps.store.resetFeedbackLimit(key);
-      await raw.replyFn("Limit reset. Send your feedback.");
-      return { handled: true };
-    }
-    if ((CONFIRM_NO_COMMANDS as readonly string[]).includes(lower)) {
-      this.deps.store.setFeedbackClosed(key);
-      await raw.replyFn("Work on this task has been closed.");
-      return { handled: true };
-    }
-
-    await raw.replyFn(`Please respond with "tak" to continue or "nie" to stop.`);
     return { handled: true };
   }
 }

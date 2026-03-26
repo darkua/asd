@@ -159,7 +159,7 @@ export class GitVCS implements VCS {
         log.debug("Worktree removed");
       }
     } catch (err) {
-      log.warn(`Worktree cleanup failed: ${err}`);
+      log.warn(`Worktree cleanup failed: ${toErrorMessage(err)}`);
       try {
         execSync(`rm -rf "${wPath}"`, { encoding: "utf-8" });
         this.git("worktree prune");

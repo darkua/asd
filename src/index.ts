@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { config } from "./config/config.js";
 import { logger } from "./logger.js";
 import { AGENT_PROVIDER_CLAUDE, AGENT_PROVIDER_CURSOR } from "./constants.js";
+import { toErrorMessage } from "./utils/errors.js";
 
 // Adapters
 import { ClaudeProvider } from "./adapters/claude/claude-provider.js";
@@ -14,7 +15,17 @@ import { SlackNotifier } from "./adapters/slack/slack-notifier.js";
 import { SlackListener } from "./adapters/slack/slack-listener.js";
 import { HealthServer } from "./adapters/health/health-server.js";
 import type { AIProvider } from "./ports/ai-provider.js";
+
+// GitHub integration
+import { GitHubClient } from "./adapters/github/github-client.js";
+import { GitHubListener } from "./adapters/github/github-listener.js";
+import { GitHubNotifier } from "./adapters/github/github-notifier.js";
+import { CompositeFeedbackListener } from "./adapters/composite/composite-feedback-listener.js";
+import { CompositeNotifier } from "./adapters/composite/composite-notifier.js";
+
+// Port types (for typed variables)
 import type { Notifier } from "./ports/notifier.js";
+import type { FeedbackListener } from "./ports/feedback-listener.js";
 
 // Core
 import { TaskPipeline } from "./core/task-pipeline.js";
@@ -124,10 +135,8 @@ async function main(): Promise<void> {
 
   const isOnce = process.argv.includes("--once");
 
-  const notifier: Notifier = new SlackNotifier(slackClient);
+  const slackNotifier = new SlackNotifier(slackClient);
   const canRunSlackListener = Boolean(config.slack.botToken && config.slack.appToken);
-
-  let feedbackListener: SlackListener | null = null;
   if (!canRunSlackListener && !isOnce) {
     throw new Error(
       "Slack is mandatory for normal operation. Missing SLACK_BOT_TOKEN and/or SLACK_APP_TOKEN. " +
@@ -135,19 +144,59 @@ async function main(): Promise<void> {
     );
   }
 
-  if (canRunSlackListener && !isOnce) {
+  // Start SlackClient (only in continuous mode and when tokens are configured)
+  let slackListener: SlackListener | null = null;
+  if (!isOnce && canRunSlackListener) {
     await slackClient.start();
-    feedbackListener = new SlackListener(slackClient, store, config.jira.project, config.jira.baseUrl);
+    slackListener = new SlackListener(slackClient, store, config.jira.project, config.jira.baseUrl);
   }
 
   const healthServer = new HealthServer(config.worker.healthPort, store);
+
+  // ─── GitHub Integration ──────────────────────────────────
+  let notifier: Notifier = slackNotifier;
+  let feedbackListener: FeedbackListener | null = slackListener;
+
+  if (config.github.enabled) {
+    logger.info("GitHub integration: enabled");
+
+    if (!config.github.token) {
+      logger.warn("GITHUB_TOKEN / GH_TOKEN not set — GitHub API calls will fail");
+    }
+    if (config.worker.healthPort <= 0) {
+      logger.warn("HEALTH_PORT is 0 — GitHub webhook endpoint will not be available. Set HEALTH_PORT to enable.");
+    }
+
+    const ghClient = new GitHubClient({ token: config.github.token });
+    const ghNotifier = new GitHubNotifier(ghClient, store);
+    const ghListener = new GitHubListener(ghClient, store, {
+      botUsername: config.github.botUsername,
+      webhookSecret: config.github.webhookSecret,
+    });
+
+    // Register webhook endpoint on HealthServer
+    healthServer.registerRoute("/webhooks/github", (req, res) => ghListener.webhook.handle(req, res));
+
+    // Compose notifiers: Slack primary, GitHub secondary
+    notifier = new CompositeNotifier(slackNotifier, [ghNotifier]);
+
+    // Compose feedback listeners
+    const listeners: FeedbackListener[] = [];
+    if (slackListener) listeners.push(slackListener);
+    listeners.push(ghListener);
+    feedbackListener = new CompositeFeedbackListener(listeners);
+
+    logger.info(`GitHub webhook: POST http://localhost:${config.worker.healthPort}/webhooks/github`);
+    logger.info(`GitHub bot username: ${config.github.botUsername || "(not set)"}`);
+  }
+
+  // Start health server (must come after route registration)
   if (config.worker.healthPort > 0) {
     await healthServer.start();
   }
 
-  const pipeline = new TaskPipeline(ai, taskSource, notifier, store, vcs, {
-    maxFeedbackRounds: config.worker.maxFeedbackRounds,
-  });
+  // ─── Create Core ────────────────────────────────────────
+  const pipeline = new TaskPipeline(ai, taskSource, notifier, store, vcs);
 
   const worker = new Worker(
     pipeline,
@@ -161,7 +210,6 @@ async function main(): Promise<void> {
       pollIntervalMs: config.worker.pollIntervalMs,
       maxTurns: config.worker.maxTurns,
       timeoutMs: config.worker.timeoutMs,
-      maxFeedbackRounds: config.worker.maxFeedbackRounds,
       maxConcurrent: config.worker.maxConcurrent,
       isOnce,
     },
@@ -171,6 +219,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  logger.error(`Fatal: ${err}`);
+  logger.error(`Fatal: ${toErrorMessage(err)}`);
   process.exit(1);
 });

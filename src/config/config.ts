@@ -52,6 +52,18 @@ export const config = {
     appToken: optional("SLACK_APP_TOKEN", ""),
   },
 
+  // GitHub Integration
+  github: {
+    enabled: optional("GITHUB_INTEGRATION_ENABLED", "false") === "true",
+    webhookSecret: optional("GITHUB_WEBHOOK_SECRET", ""),
+    botUsername: optional("GITHUB_BOT_USERNAME", ""),
+    reviewBotUsers: optional("GITHUB_REVIEW_BOT_USERS", "coderabbitai[bot]")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
+  },
+
   // Worker
   worker: {
     pollIntervalMs: parseInt(optional("POLL_INTERVAL_MS", "900000"), 10), // 15 min

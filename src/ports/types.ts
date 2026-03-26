@@ -27,7 +27,6 @@ export interface FeedbackRequest {
   feedback: string;
   mode: "fix" | "redo";
   round: number;
-  maxRounds: number;
 }
 
 export interface RawFeedback {
@@ -35,6 +34,8 @@ export interface RawFeedback {
   feedback: string;
   mode: "fix" | "redo";
   replyFn: (text: string) => Promise<void>;
+  /** Called after feedback processing completes (success or failure). */
+  onCompleteFn?: (success: boolean) => Promise<void>;
 }
 
 import type { TaskStatus } from "../constants.js";
@@ -50,9 +51,7 @@ export interface StoredTask {
   error?: string;
   threadRef?: ThreadRef;
   feedbackRound: number;
-  feedbackClosed?: boolean;
   childProcessPid?: number;
-  limitReachedAt?: string;
   taskInfo?: TaskInfo;
   costUsd?: number;
 }
@@ -61,7 +60,6 @@ export interface WorkerConfig {
   pollIntervalMs: number;
   maxTurns: number;
   timeoutMs: number;
-  maxFeedbackRounds: number;
   maxConcurrent: number;
   isOnce: boolean;
 }

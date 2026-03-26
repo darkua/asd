@@ -1,9 +1,36 @@
 import type { TaskInfo, FeedbackRequest } from "../ports/types.js";
 
+export const ALLOWED_TOOLS = [
+  "Read",
+  "Write",
+  "Edit",
+  "Glob",
+  "Grep",
+  "Bash(git:*)",
+  "Bash(gh pr create:*)",
+  "Bash(gh pr view:*)",
+  "Bash(npm:*)",
+  "Bash(npx:*)",
+  "Bash(yarn:*)",
+  "Bash(pnpm:*)",
+  "Bash(cat:*)",
+  "Bash(ls:*)",
+  "Bash(find:*)",
+  "Bash(head:*)",
+  "Bash(tail:*)",
+  "Bash(wc:*)",
+  "Bash(mkdir:*)",
+  "Bash(cp:*)",
+  "Bash(mv:*)",
+].join(",");
+
 /**
  * Build the implementation prompt from JIRA task info.
  */
-export function buildPrompt(task: TaskInfo, config: { baseBranch: string }): string {
+export function buildPrompt(
+  task: TaskInfo,
+  config: { baseBranch: string },
+): string {
   return [
     `## Task: ${task.key}`,
     `**Summary:** ${task.summary}`,
@@ -49,7 +76,7 @@ export function buildSystemPrompt(): string {
   return [
     "You are an autonomous software engineer implementing a JIRA task.",
     "Follow AGENT.md rules strictly. Do not skip tests.",
-    "Do not ask for clarification — make reasonable decisions based on the codebase.",
+    "CRITICAL: You are fully autonomous. NEVER ask questions, NEVER ask for confirmation, NEVER ask 'shall I...?' or 'should I...?'. Just do it. Make all decisions yourself.",
     "If you encounter a blocker, commit what you have and note the blocker in the PR description.",
     `The git branch is already set up. You are working in the correct directory.`,
     `Push to origin when done. Create the PR using the gh CLI or git commands.`,
@@ -83,8 +110,8 @@ export function buildFeedbackPrompt(
       : [
           "## Instructions",
           "Start a fresh implementation from scratch based on the original task and the feedback.",
-          `Create a **draft** pull request targeting \`${config.baseBranch}\`.`,
           "Update the changelog (repo-aware) BEFORE pushing/committing.",
+          `Create a pull request targeting \`${config.baseBranch}\`.`,
           "",
           "## Output",
           "After completing the PR, output EXACTLY this line:",
@@ -94,7 +121,7 @@ export function buildFeedbackPrompt(
   return [
     originalPrompt,
     "",
-    `## Human Feedback (round ${feedback.round} of ${feedback.maxRounds})`,
+    `## Human Feedback (round ${feedback.round})`,
     feedback.feedback,
     "",
     ...instructions,
@@ -108,7 +135,7 @@ export function buildFeedbackSystemPrompt(mode: "fix" | "redo"): string {
   return [
     "You are an autonomous software engineer applying human feedback to a JIRA task implementation.",
     "Follow AGENT.md rules strictly. Do not skip tests.",
-    "Do not ask for clarification — apply the feedback as described.",
+    "CRITICAL: You are fully autonomous. NEVER ask questions, NEVER ask for confirmation, NEVER ask 'shall I...?' or 'should I...?'. Just do it. Apply the feedback as described.",
     mode === "fix"
       ? "You are working on an existing branch with prior implementation. Review what exists and make targeted changes."
       : "You are starting fresh. The branch is clean.",
