@@ -421,7 +421,7 @@ export async function runClaudeCodeWithFeedback(
   const prompt = buildFeedbackPrompt(task, feedback, mode, round, maxRounds);
   const systemPrompt = [
     "You are an autonomous software engineer applying human feedback to a JIRA task implementation.",
-    "Follow CLAUDE.md rules strictly. Do not skip tests.",
+    "Follow AGENT.md rules strictly. Do not skip tests.",
     "Do not ask for clarification — apply the feedback as described.",
     mode === "fix"
       ? "You are working on an existing branch with prior implementation. Review what exists and make targeted changes."

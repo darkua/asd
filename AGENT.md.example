@@ -1,7 +1,7 @@
-# CLAUDE.md — AI Agent Rules
+# AGENT.md — AI Agent Rules
 
-> This file is read automatically by Claude Code.  
-> It defines how the AI agent should implement JIRA tasks in this repository.
+> Copy to **`AGENT.md`** in your **target repo** (the one the worker checks out), not necessarily this worker repo.  
+> Claude Code and Cursor Agent are instructed to read **`AGENT.md`** for conventions when implementing JIRA tasks.
 
 ## Project context
 

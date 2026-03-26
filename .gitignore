@@ -3,3 +3,4 @@ dist/
 .env
 .worker-state.json
 *.log
+./worker-log.json

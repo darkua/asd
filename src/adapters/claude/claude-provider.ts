@@ -3,15 +3,35 @@ import { createInterface } from "node:readline";
 import { createLogger } from "../../logger.js";
 import type { AIProvider, ProgressCallback } from "../../ports/ai-provider.js";
 import type { TaskInfo, AIResult, FeedbackRequest } from "../../ports/types.js";
-import { KILL_GRACE_MS, KILL_POLL_INTERVAL_MS } from "../../constants.js";
-import type { ClaudeStreamEvent, ContentBlock } from "./stream-types.js";
 import {
-  ALLOWED_TOOLS,
-  buildPrompt,
-  buildSystemPrompt,
   buildFeedbackPrompt,
   buildFeedbackSystemPrompt,
-} from "./prompts.js";
+  buildPrompt,
+  buildSystemPrompt,
+} from "../../utils/agent-prompts.js";
+import { extractPrUrlFromOutput } from "../../utils/pr-url.js";
+import { killProcessGroup } from "../../utils/process-group.js";
+import type { ClaudeStreamEvent, ContentBlock } from "./stream-types.js";
+
+const ALLOWED_TOOLS = [
+  "Read", "Write", "Edit", "Glob", "Grep",
+  "Bash(git:*)",
+  "Bash(gh pr create:*)",
+  "Bash(gh pr view:*)",
+  "Bash(npm:*)",
+  "Bash(npx:*)",
+  "Bash(yarn:*)",
+  "Bash(pnpm:*)",
+  "Bash(cat:*)",
+  "Bash(ls:*)",
+  "Bash(find:*)",
+  "Bash(head:*)",
+  "Bash(tail:*)",
+  "Bash(wc:*)",
+  "Bash(mkdir:*)",
+  "Bash(cp:*)",
+  "Bash(mv:*)",
+].join(",");
 
 export class ClaudeProvider implements AIProvider {
   private readonly maxTurns: number;
@@ -44,7 +64,7 @@ export class ClaudeProvider implements AIProvider {
     log.info(`Prompt sent to Claude:\n${prompt}`);
     log.info(`System prompt sent to Claude:\n${systemPrompt}`);
 
-    return this.spawnClaude(args, workDir, task.key, log, startTime, onProgress);
+    return this.spawnClaude(args, workDir, log, startTime, onProgress);
   }
 
   async runWithFeedback(task: TaskInfo, workDir: string, feedback: FeedbackRequest, onProgress?: ProgressCallback): Promise<AIResult> {
@@ -66,49 +86,11 @@ export class ClaudeProvider implements AIProvider {
     log.info(`Starting Claude Code with feedback (round ${feedback.round}, mode: ${feedback.mode})`);
     log.info(`Feedback prompt:\n${prompt}`);
 
-    return this.spawnClaude(args, workDir, task.key, log, startTime, onProgress);
+    return this.spawnClaude(args, workDir, log, startTime, onProgress);
   }
 
   async kill(pid: number): Promise<void> {
-    const log = createLogger();
-
-    try {
-      process.kill(-pid, 0);
-    } catch {
-      log.debug(`Process group ${pid} already dead`);
-      return;
-    }
-
-    log.info(`Killing Claude Code process group ${pid}`);
-
-    try {
-      process.kill(-pid, "SIGTERM");
-    } catch {
-      return;
-    }
-
-    await new Promise<void>((resolve) => {
-      const checkInterval = setInterval(() => {
-        try {
-          process.kill(-pid, 0);
-        } catch {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, KILL_POLL_INTERVAL_MS);
-
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        try {
-          process.kill(-pid, "SIGKILL");
-        } catch {
-          // already dead
-        }
-        resolve();
-      }, KILL_GRACE_MS);
-    });
-
-    log.info(`Process group ${pid} terminated`);
+    await killProcessGroup(pid, createLogger());
   }
 
   private buildSafeEnv(): Record<string, string | undefined> {
@@ -128,7 +110,6 @@ export class ClaudeProvider implements AIProvider {
         safeEnv[key] = process.env[key];
       }
     }
-    // Explicitly ensure no API key billing
     safeEnv.ANTHROPIC_API_KEY = undefined;
     return safeEnv;
   }
@@ -136,7 +117,6 @@ export class ClaudeProvider implements AIProvider {
   private spawnClaude(
     args: string[],
     workDir: string,
-    taskKey: string,
     log: ReturnType<typeof createLogger>,
     startTime: number,
     onProgress?: ProgressCallback,
@@ -160,7 +140,6 @@ export class ClaudeProvider implements AIProvider {
         childPid = child.pid;
       }
 
-      // Parse streaming JSON line-by-line for real-time logging
       const rl = createInterface({ input: child.stdout });
       rl.on("line", (line) => {
         rawLines.push(line);
@@ -168,7 +147,6 @@ export class ClaudeProvider implements AIProvider {
           const event = JSON.parse(line) as ClaudeStreamEvent;
           this.processStreamEvent(event, log, turnCounter, costTracker, startTime, onProgress);
         } catch {
-          // Not JSON — log raw
           if (line.trim()) log.debug(`[stdout] ${line.slice(0, 500)}`);
         }
       });
@@ -199,9 +177,8 @@ export class ClaudeProvider implements AIProvider {
 
         log.info(`Claude Code exited with code ${code} in ${(durationMs / 1000).toFixed(1)}s (${turnCounter.value} turns)`);
 
-        // Extract final result text from the last assistant message
         const resultText = this.extractResultText(rawLines);
-        const prUrl = this.extractPrUrl(resultText || rawOutput);
+        const prUrl = extractPrUrlFromOutput(resultText || rawOutput);
 
         if (code !== 0) {
           log.error("Claude Code failed", {
@@ -312,17 +289,5 @@ export class ClaudeProvider implements AIProvider {
       }
     }
     return lastText;
-  }
-
-  private extractPrUrl(text: string): string | null {
-    // Match explicit PR_URL output
-    const prUrlMatch = text.match(/PR_URL:\s*(https:\/\/github\.com\/[^\s]+\/pull\/\d+)/i);
-    if (prUrlMatch) return prUrlMatch[1];
-
-    // Fallback: match any GitHub PR URL in the output
-    const ghMatch = text.match(/(https:\/\/github\.com\/[^\s]+\/pull\/\d+)/);
-    if (ghMatch) return ghMatch[1];
-
-    return null;
   }
 }

@@ -1,7 +1,7 @@
-import { logger } from "../logger.js";
+import { createLogger, logger } from "../logger.js";
 import type { Notifier } from "../ports/notifier.js";
 import type { TaskSource } from "../ports/task-source.js";
-import type { FeedbackListener } from "../ports/feedback-listener.js";
+import type { FeedbackListener, TaskRunRequest } from "../ports/feedback-listener.js";
 import type { Store } from "../ports/store.js";
 import type { VCS } from "../ports/vcs.js";
 import type { AIProvider } from "../ports/ai-provider.js";
@@ -45,6 +45,15 @@ export class Worker {
     if (!this.config.isOnce && this.feedbackListener) {
       this.feedbackListener.onFeedback((raw) => this.handleRawFeedback(raw));
       this.feedbackListener.onStatusRequest(() => this.getStatus());
+      this.feedbackListener.onTaskRunRequest(async (req) => {
+        void this.handleTaskRunRequest(req).catch(async (e) => {
+          try {
+            await req.replyFn(`Error: ${toErrorMessage(e)}`);
+          } catch {
+            /* ignore */
+          }
+        });
+      });
       await this.feedbackListener.start();
     }
 
@@ -122,6 +131,20 @@ export class Worker {
       );
 
       if (newTasks.length === 0) {
+        if (tasks.length > 0) {
+          for (const t of tasks) {
+            if (this.store.isProcessed(t.key)) {
+              const st = this.store.getTask(t.key)?.status;
+              logger.info(
+                `Skipping ${t.key}: already tracked in worker state (status=${st}; clear state or use reset if you meant to rerun)`,
+              );
+            } else if (this.vcs.branchExists(t.key)) {
+              logger.info(
+                `Skipping ${t.key}: git branch for this ticket already exists — delete local/remote feat/${t.key.toLowerCase()} (and worktree under .worktrees/) to pick it up again`,
+              );
+            }
+          }
+        }
         logger.info("No new tasks");
         return;
       }
@@ -148,6 +171,107 @@ export class Worker {
 
     const stats = this.store.getStats();
     logger.info(`Stats: ${stats.review} review, ${stats.done} done, ${stats.failed} failed, ${stats.processing} processing`);
+  }
+
+  /**
+   * Slack: pasted JIRA browse URL or bare ticket key — fetch issue, cleanup if failed/orphan branch, run pipeline.
+   */
+  private async handleTaskRunRequest(req: TaskRunRequest): Promise<void> {
+    const { issueKey, replyFn, bypassJiraStatusCheck } = req;
+    const log = createLogger(issueKey);
+    log.info(
+      bypassJiraStatusCheck
+        ? "Manual task run requested (Slack retry — JIRA status checks bypassed)"
+        : "Manual task run requested (JIRA link or key from Slack)",
+    );
+
+    const fetched = await this.taskSource.fetchIssueForManualRun(
+      issueKey,
+      bypassJiraStatusCheck ? { bypassStatusFilter: true } : undefined,
+    );
+    if (!fetched.ok) {
+      await replyFn(fetched.reason);
+      return;
+    }
+
+    const { task, jiraStatusName } = fetched;
+    const stored = this.store.getTask(issueKey);
+
+    if (stored?.status === "processing") {
+      await replyFn(
+        `*${issueKey}* is already **processing** in the worker (AI run in flight).`,
+      );
+      return;
+    }
+    if (stored?.status === "review") {
+      await replyFn(
+        stored.prUrl
+          ? `*${issueKey}* already has a PR: ${stored.prUrl}`
+          : `*${issueKey}* is in review in worker state but has no PR URL stored.`,
+      );
+      return;
+    }
+    if (stored?.status === "done") {
+      await replyFn(`*${issueKey}* is already marked done in worker state.`);
+      return;
+    }
+
+    if (this.lockManager.isLocked(issueKey)) {
+      await replyFn(`*${issueKey}* is already running (lock held). Try again shortly.`);
+      return;
+    }
+
+    const jiraSt = jiraStatusName.toLowerCase();
+    if (!bypassJiraStatusCheck && jiraSt === "in progress") {
+      const recovering =
+        stored?.status === "failed" ||
+        this.vcs.branchExists(issueKey);
+      if (!recovering) {
+        await replyFn(
+          `⚠️ *${issueKey}* is already **In progress** in JIRA — the worker will not start another implementation run (it may already be in progress there or assigned to someone else). ` +
+            `If the last *worker* run failed, use \`retry ${issueKey}\` or paste the link again after failure so cleanup can run. ` +
+            `To run again from scratch, move the issue to **To Do** in JIRA first.`,
+        );
+        return;
+      }
+    }
+
+    await replyFn(`*${issueKey}* — preparing (clearing failed state / git branch if needed)…`);
+
+    if (stored?.status === "failed" || this.vcs.branchExists(issueKey)) {
+      this.store.resetTask(issueKey);
+      try {
+        this.vcs.removeWorktree(issueKey);
+      } catch {
+        /* ignore */
+      }
+      try {
+        this.vcs.deleteBranch(issueKey);
+      } catch {
+        /* ignore */
+      }
+      log.info(`Manual run: cleaned worker state / git for ${issueKey}`);
+    }
+
+    if (this.store.isProcessed(issueKey)) {
+      const st = this.store.getTask(issueKey)?.status ?? "?";
+      await replyFn(`*${issueKey}* is still tracked (${st}) — cannot start a fresh run.`);
+      return;
+    }
+
+    if (this.vcs.branchExists(issueKey)) {
+      await replyFn(
+        `*${issueKey}*: feature branch still exists after cleanup. Remove \`feat/${issueKey.toLowerCase()}\` (local + remote) and try again.`,
+      );
+      return;
+    }
+
+    await replyFn(`Starting AI implementation for *${issueKey}*…`);
+
+    await this.lockManager.withLock(issueKey, async () => {
+      await this.pipeline.processTask(task);
+    });
+    await this.lockManager.drainQueue(this.pipeline);
   }
 
   private async handleRawFeedback(raw: RawFeedback): Promise<void> {

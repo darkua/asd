@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve, relative, isAbsolute } from "node:path";
 import type { VCS } from "../../ports/vcs.js";
 import { createLogger } from "../../logger.js";
 import { GIT_TIMEOUT_MS, INSTALL_TIMEOUT_MS } from "../../constants.js";
@@ -41,6 +41,93 @@ export class GitVCS implements VCS {
     }
   }
 
+  /** True if `p` is this repo's shared `.worktrees` directory or a path inside it. */
+  private isUnderProjectWorktrees(p: string): boolean {
+    const root = resolve(dirname(this.config.path), ".worktrees");
+    const rel = relative(root, resolve(p));
+    if (rel === "") return true;
+    if (isAbsolute(rel)) return false;
+    return !rel.startsWith("..");
+  }
+
+  /**
+   * Drop any git registration for this ticket's worktree path or feature branch.
+   * Needed when the folder was deleted manually but git still locks the branch, or
+   * when a previous remove failed — otherwise `worktree add -b` errors with
+   * "already checked out at ...".
+   */
+  private releaseTicketGitSlot(wPath: string, branch: string, log: ReturnType<typeof createLogger>): void {
+    const target = resolve(wPath);
+    let removed = false;
+
+    try {
+      const porcelain = this.git("worktree list --porcelain");
+      const blocks = porcelain.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
+      for (const block of blocks) {
+        let wtPath = "";
+        let headBranch = "";
+        for (const line of block.split("\n")) {
+          if (line.startsWith("worktree ")) {
+            wtPath = line.slice("worktree ".length).trim();
+          }
+          if (line.startsWith("branch ")) {
+            const ref = line.slice("branch ".length).trim();
+            headBranch = ref.startsWith("refs/heads/") ? ref.slice("refs/heads/".length) : ref;
+          }
+        }
+        if (!wtPath) continue;
+        const samePath = resolve(wtPath) === target;
+        // Never remove the primary repo worktree: only match branch under `.worktrees/`.
+        const sameBranchHere = headBranch === branch && this.isUnderProjectWorktrees(wtPath);
+        if (samePath || sameBranchHere) {
+          try {
+            this.git(`worktree remove "${wtPath}" --force`);
+            removed = true;
+            log.debug(`Removed registered worktree at ${wtPath}`);
+          } catch {
+            try {
+              execSync(`rm -rf "${wtPath}"`, { encoding: "utf-8" });
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }
+    } catch {
+      // porcelain/list failed — fall through to path-based remove
+    }
+
+    if (existsSync(wPath)) {
+      log.warn("Worktree path still on disk after git cleanup, forcing remove");
+      try {
+        this.git(`worktree remove "${wPath}" --force`);
+        removed = true;
+      } catch {
+        try {
+          execSync(`rm -rf "${wPath}"`, { encoding: "utf-8" });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    try {
+      this.git("worktree prune");
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      this.git(`branch -D ${branch}`);
+    } catch {
+      // branch absent or still in use until prune propagates
+    }
+
+    if (removed) {
+      log.info("Released stale worktree / branch lock for this ticket");
+    }
+  }
+
   createWorktree(key: string): string {
     const log = createLogger(key);
     const branch = this.branchName(key);
@@ -48,21 +135,7 @@ export class GitVCS implements VCS {
 
     this.git(`fetch ${this.config.remote} ${this.config.baseBranch} --prune`);
 
-    if (existsSync(wPath)) {
-      log.warn("Stale worktree found, removing");
-      try {
-        this.git(`worktree remove "${wPath}" --force`);
-      } catch {
-        execSync(`rm -rf "${wPath}"`, { encoding: "utf-8" });
-        this.git("worktree prune");
-      }
-    }
-
-    try {
-      this.git(`branch -D ${branch} 2>/dev/null`);
-    } catch {
-      // branch doesn't exist locally
-    }
+    this.releaseTicketGitSlot(wPath, branch, log);
 
     this.git(
       `worktree add "${wPath}" -b ${branch} ${this.config.remote}/${this.config.baseBranch}`

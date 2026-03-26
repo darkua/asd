@@ -1,8 +1,8 @@
-# CLAUDE.md — jira-ai-worker
+# AGENT.md — jira-ai-worker
 
 ## Project
 
-JIRA AI Worker — polls JIRA for `AI-GEN` tickets, spawns Claude Code CLI to implement them, creates draft PRs, notifies Slack with real-time progress. Uses Claude Code MAX subscription (no API key).
+JIRA AI Worker — polls JIRA for `AI-GEN` tickets, spawns **Claude Code** or **Cursor Agent CLI** (`AGENT_PROVIDER`) to implement them, creates draft PRs, notifies Slack with real-time progress. Claude path uses MAX subscription when `ANTHROPIC_API_KEY` is unset; Cursor path uses Cursor login or `CURSOR_API_KEY`.
 
 ## Code Quality Enforcement
 
@@ -15,7 +15,7 @@ JIRA AI Worker — polls JIRA for `AI-GEN` tickets, spawns Claude Code CLI to im
 Hexagonal (Ports & Adapters). Three layers:
 
 - **Ports** (`src/ports/`) — interfaces only, no implementation
-- **Adapters** (`src/adapters/`) — implementations: claude, jira, slack, git, json-store, health
+- **Adapters** (`src/adapters/`) — implementations: claude, cursor, jira, slack, git, json-store, health
 - **Core** (`src/core/`) — business logic depending only on ports
 
 **Dependency rule**: Core imports ports. Adapters import ports. Core never imports adapters. Adapters never import each other. Only `src/index.ts` (composition root) imports everything.
@@ -35,8 +35,13 @@ Hexagonal (Ports & Adapters). Three layers:
 | `src/core/processing-lock-manager.ts` | Per-task locking with `withLock()` + iterative queue drain |
 | `src/adapters/claude/claude-provider.ts` | Spawns Claude CLI, streams JSON, progress callbacks, sanitized env |
 | `src/adapters/claude/stream-types.ts` | Typed Claude CLI stream events (`ClaudeStreamEvent`, `ContentBlock`) |
-| `src/adapters/claude/prompts.ts` | System prompts + implementation instructions |
-| `src/adapters/slack/slack-listener.ts` | Receives Slack button actions + status triggers |
+| `src/adapters/cursor/cursor-agent-provider.ts` | Cursor CLI spawn (uses `cursor-agent-shell.ts`) |
+| `src/adapters/cursor/cursor-agent-shell.ts` | Env helpers + `spawnCursorAgentShell` / `writeCursorAgentPromptFile` (single spawn path for worker + debug CLI) |
+| `scripts/debug-cursor-agent.ts` | CLI to reproduce worker Cursor spawn in any worktree (`npm run cursor:debug -- <workdir> <prompt-file>`) |
+| `src/utils/agent-prompts.ts` | Shared task/system/feedback prompts (Claude + Cursor) |
+| `src/adapters/slack/slack-listener.ts` | Bolt: message text (`retry <ticket>`), button actions, modals, status |
+| `src/utils/parse-retry-channel-message.ts` | Parses `retry MP-571` / `retry 571` from Slack channel text |
+| `src/utils/extract-jira-issue-key.ts` | Parses pasted `JIRA_BASE_URL/browse/KEY` or a lone `PROJECT-n` line for manual run |
 | `src/adapters/slack/slack-notifier.ts` | Notifications with Bolt/webhook fallback via `sendViaAvailableChannel()` |
 | `src/adapters/slack/slack-ui.ts` | Shared `buildActionButtons()`, `STATUS_EMOJI` |
 | `src/adapters/slack/slack-types.ts` | Typed Slack payloads (`SlackActionPayload`, `SlackMessageEvent`) |
@@ -63,7 +68,7 @@ Hexagonal (Ports & Adapters). Three layers:
 - **Port types** — shared types in `src/ports/types.ts`: `TaskInfo`, `ThreadRef`, `AIResult`, `StoredTask`, `TaskStatus`, etc.
 - **Store sub-interfaces** — `TaskQueryStore`, `TaskStateStore`, `FeedbackStore`, `TaskMetadataStore` (use narrowest needed)
 - **Atomic state writes** — JsonStore uses write-to-tmp-then-rename + in-memory cache
-- **Environment sanitization** — Claude child process gets only allowlisted env vars (no secrets)
+- **Environment sanitization** — agent child processes get only allowlisted env vars (no secrets)
 - **parseInt always with radix** — `parseInt(value, 10)`
 
 ## Reusable Patterns (check before writing new code)
@@ -89,7 +94,7 @@ Hexagonal (Ports & Adapters). Three layers:
 
 **Adding an env var**: Add to `src/config/config.ts` with `required()` or `optional()`. Always `parseInt(value, 10)` for numbers.
 
-**Changing AI prompt**: Edit `src/adapters/claude/prompts.ts`.
+**Changing AI prompt**: Edit `src/utils/agent-prompts.ts` (shared); Claude-only tool allowlist stays in `src/adapters/claude/claude-provider.ts`.
 
 **Adding a notification channel**: Create new `Notifier` implementation, wrap with existing in `CompositeNotifier`.
 
@@ -138,7 +143,7 @@ failed -> processing (via Retry button)
 - Do not put business logic in adapters (adapters are transport only)
 - Do not use `ANTHROPIC_API_KEY` — this uses MAX subscription
 - Do not auto-merge PRs — always create as drafts
-- Do not pass secrets to Claude child process — use `buildSafeEnv()` allowlist
+- Do not pass secrets to agent child processes — use each adapter’s `buildSafeEnv()` allowlist
 - Do not use `any` without justification — use typed interfaces
 - Do not hardcode numbers/strings — put them in `src/constants.ts`
 - Do not write `err instanceof Error ? err.message : String(err)` — use `toErrorMessage()`

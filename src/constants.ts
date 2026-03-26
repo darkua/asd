@@ -24,6 +24,10 @@ export const STATUS_EMOJI: Record<TaskStatus, string> = {
   failed: "❌",
 };
 
+// ─── Agent provider (composition root) ───────────────────────
+export const AGENT_PROVIDER_CLAUDE = "claude";
+export const AGENT_PROVIDER_CURSOR = "cursor";
+
 // ─── Feedback Commands ──────────────────────────────────────
 export const CANCEL_COMMANDS = ["cancel", "stop"] as const;
 export const CONFIRM_YES_COMMANDS = ["tak", "yes"] as const;

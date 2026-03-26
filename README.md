@@ -1,19 +1,21 @@
 # JIRA AI Worker
 
-Automate software implementation: JIRA ticket → Claude Code → Pull Request → Slack notification.
+Automate software implementation: JIRA ticket → **Claude Code** or **Cursor Agent CLI** → Pull Request → Slack notification.
 
-Uses **Claude Code MAX subscription** (no API key billing).
+- **Claude**: uses **Claude Code MAX** subscription when `ANTHROPIC_API_KEY` is unset.
+- **Cursor**: uses **Cursor subscription** via `agent` on PATH (e.g. Cursor CLI login) or optional `CURSOR_API_KEY`.
 
 ## How it works
 
 ```
 ┌──────────┐    poll     ┌──────────┐   spawn    ┌────────────┐
 │   JIRA   │ ──────────> │  Worker  │ ────────>  │ Claude Code│
-│ (AI-GEN) │             │ (Node.js)│            │  CLI (-p)  │
+│ (AI-GEN) │             │ (Node.js)│     or     │ / Cursor   │
+│          │             │          │            │  agent -p  │
 └──────────┘             └──────────┘            └────────────┘
                               │                        │
                               │   ┌────────────────────┘
-                              │   │ stream-json + PR URL
+                              │   │ stdout (NDJSON if emitted) + PR URL
                               v   v
                          ┌──────────┐
                          │  Slack   │  ← reply in thread
@@ -23,7 +25,7 @@ Uses **Claude Code MAX subscription** (no API key billing).
 
 1. Polls JIRA every 15 min for issues with `[AI-GEN]` in summary, status "To Do"
 2. Creates isolated git worktree per task, auto-installs dependencies
-3. Runs Claude Code in headless mode with streaming JSON output
+3. Runs the configured agent (Claude Code with `stream-json`, or Cursor via `sh` + temp prompt file + `agent -p -f --trust "$(cat …)"`) in the worktree cwd
 4. Sends real-time progress updates to Slack (every 60s)
 5. Validates PR exists via `gh pr view` before marking success
 6. Updates JIRA status and notifies Slack with cost + duration summary
@@ -38,7 +40,8 @@ src/
   ports/              ← interfaces (AIProvider, TaskSource, Notifier, Store, VCS)
   core/               ← business logic (TaskPipeline, Worker)
   adapters/
-    claude/           ← AIProvider: spawns Claude Code CLI
+    claude/           ← AIProvider: Claude Code CLI
+    cursor/           ← AIProvider: Cursor CLI (prompt file + `sh -c '…cat…'`, cwd = worktree)
     jira/             ← TaskSource: polls JIRA REST API
     slack/            ← Notifier + FeedbackListener: Bolt Socket Mode
     git/              ← VCS: worktree management
@@ -51,7 +54,9 @@ src/
 ## Prerequisites
 
 - **Node.js 22+**
-- **Claude Code CLI** installed and logged in with MAX subscription
+- **Agent CLI** (pick one per `AGENT_PROVIDER`):
+  - **claude** — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and `claude login` (MAX subscription; do not set `ANTHROPIC_API_KEY` for MAX billing)
+  - **cursor** — [Cursor CLI](https://cursor.com/docs/cli/installation): `agent` on PATH, e.g. `agent about` (or set `CURSOR_API_KEY` if you use API mode)
 - **GitHub CLI** (`gh`) authenticated
 - **Git** with worktree support
 - JIRA Cloud API token
@@ -66,14 +71,15 @@ npm install
 cp .env.example .env
 # Edit .env with your JIRA, repo, and Slack config
 
-# 3. Authenticate Claude Code (one time)
+# 3. Authenticate the agent (pick one)
+# Claude:
 claude login
-
-# 4. Verify
 claude -p "echo hello" --output-format json
+unset ANTHROPIC_API_KEY   # use MAX subscription, not API key
 
-# 5. Make sure no API key is set
-unset ANTHROPIC_API_KEY
+# Cursor:
+# agent about
+# agent -p -f --trust "$(cat prompt.txt)"
 ```
 
 ## Usage
@@ -102,6 +108,8 @@ In JIRA, create a ticket with:
 3. **Description**: Clear, detailed implementation requirements
 
 The worker picks it up on the next poll cycle.
+
+In the **repository under `REPO_PATH`**, keep an **`AGENT.md`** at the root with project conventions (see `AGENT.md.example`). The worker’s prompts tell the agent to read `AGENT.md`.
 
 ## Slack Interaction
 
@@ -167,13 +175,17 @@ failed → processing (Retry clicked)
 | `JIRA_TRIGGER_LABEL` | `AI-GEN` | Label to trigger processing |
 | `JIRA_DONE_STATUS` | `In Review` | Status after PR creation |
 | `REPO_BASE_BRANCH` | `develop` | Base branch for features |
-| `CLAUDE_MAX_TURNS` | `100` | Max agent iterations per task |
-| `CLAUDE_TIMEOUT_MS` | `600000` | Timeout per task (10 min) |
+| `AGENT_PROVIDER` | `claude` | `claude` or `cursor` |
+| `AGENT_MAX_TURNS` | `100` | Max agent iterations per task (also: `CLAUDE_MAX_TURNS`) |
+| `AGENT_TIMEOUT_MS` | `600000` | Timeout per task / child process (10 min; also: `CLAUDE_TIMEOUT_MS`) |
+| `CURSOR_AGENT_BIN` | `agent` | Cursor CLI binary (PATH or full path); worker writes prompt to a temp file and runs it via `sh` like `$(cat file)` with cwd = worktree |
+| `CURSOR_AGENT_PATH_PREPEND` | (unset) | Prepended to child `PATH` if `agent` is missing from the worker’s PATH (e.g. `/opt/homebrew/bin`) |
+| `CURSOR_AGENT_INHERIT_ENV` | `false` | If `true`, child gets full `process.env` (closest to your terminal; forwards worker secrets too) |
 | `POLL_INTERVAL_MS` | `900000` | Poll interval (15 min) |
 | `MAX_CONCURRENT` | `1` | Parallel task processing |
 | `HEALTH_PORT` | `0` | Health check HTTP port (0 = disabled) |
 
-### Slack (Optional)
+### Slack
 
 #### Webhook only (one-way notifications)
 
@@ -194,15 +206,20 @@ Set `SLACK_WEBHOOK_URL` to receive notifications when tasks complete or fail.
 | `SLACK_CHANNEL` | Channel ID for notifications |
 | `MAX_FEEDBACK_ROUNDS` | Max rounds before asking to continue (default: 3) |
 
+In any channel thread (or top-level message), you can also type **`retry MP-571`**, **`retry mp-571`**, or **`retry 571`** (numeric suffix uses `JIRA_PROJECT_KEY`). Same behavior as the **Retry** button (failed tasks only). Typo **`retyr`** is accepted.
+
+**Start work from a JIRA link:** paste your issue URL matching `JIRA_BASE_URL`, e.g. `https://your-org.atlassian.net/browse/MP-571` (or a message that is only `MP-571`). The worker loads the issue, checks it matches **project**, **`[JIRA_TRIGGER_LABEL]`** in summary, and status **To Do** or **In progress**. If the task **failed** or a **feature branch** still exists, it clears worker state and git like **Retry**, then starts **`processTask`** immediately (no need to wait for the next poll).
+
 ## Safety & Security
 
 - **Never auto-merges** — all PRs are created as drafts
 - **PR validation** — verifies PR exists via `gh pr view` before marking success
 - **Idempotent** — tracks processed tasks, won't re-process
 - **Isolated** — each task runs in its own git worktree
-- **Sandboxed** — `--allowedTools` whitelist limits Claude's capabilities
-- **Environment sanitized** — Claude child process receives only allowlisted env vars (no JIRA/Slack secrets)
-- **Prompt guarded** — system prompt instructs Claude to never read .env or credential files
+- **Sandboxed (Claude)** — `--allowedTools` whitelist limits Claude Code capabilities
+- **Cursor** — writes prompt to `tmpdir`, runs `/bin/sh -c '"$CURSOR_AGENT_BIN" -p -f --trust "$(cat "$CURSOR_PROMPT_FILE")"'` (`CURSOR_AGENT_BIN`); wall-clock cap is Node spawn `AGENT_TIMEOUT_MS`
+- **Environment sanitized** — child process receives only allowlisted env vars (no JIRA/Slack secrets)
+- **Prompt guarded** — system instructions tell the agent to never read .env or credential files
 - **Crash recovery** — stuck "processing" tasks are auto-recovered on restart
 - **Atomic state** — state file uses write-to-tmp-then-rename (no corruption on crash)
 - **Auto-cleanup** — stale worktrees older than 7 days are automatically removed
@@ -223,6 +240,18 @@ curl http://localhost:9090/health
 ```bash
 unset ANTHROPIC_API_KEY
 claude login
+```
+
+**Cursor Agent not found / works in terminal but fails in worker:**
+- The worker used to pass a **small env** (unlike your login shell). It now forwards every `CURSOR_*` variable and logs `command -v` + PATH preview — check that line in logs.
+- If logs show `(not found)` for `agent`, set `CURSOR_AGENT_PATH_PREPEND=/opt/homebrew/bin` (or wherever `which agent` points) or set `CURSOR_AGENT_BIN` to the absolute path.
+- **TTY:** the child has **no terminal** (`stdio` pipes, `detached` process group). If the CLI still misbehaves only under the worker, try `CURSOR_AGENT_INHERIT_ENV=true` (passes full `process.env`, including secrets from the worker `.env` — use with care).
+
+**Debug the same spawn locally** (any worktree + prompt file):
+
+```bash
+npm run cursor:debug -- /path/to/.worktrees/mp-571 /path/to/prompt.txt
+# Flags: --inherit-env --path-prepend /opt/homebrew/bin --stdio inherit --attached
 ```
 
 **Slack feedback not working:**

@@ -1,22 +1,34 @@
-import type { FeedbackListener, RawFeedbackHandler, StatusHandler } from "../../ports/feedback-listener.js";
+import type {
+  FeedbackListener,
+  RawFeedbackHandler,
+  StatusHandler,
+  TaskRunRequestHandler,
+} from "../../ports/feedback-listener.js";
 import type { Store } from "../../ports/store.js";
 import { SlackClient } from "./slack-client.js";
 import { createLogger } from "../../logger.js";
 import { buildActionButtons, STATUS_EMOJI } from "./slack-ui.js";
 import { MAX_TASK_LIST_DISPLAY } from "../../constants.js";
 import type { SlackActionPayload, SlackViewSubmissionPayload, SlackMessageEvent } from "./slack-types.js";
+import { extractJiraIssueKeyFromText } from "../../utils/extract-jira-issue-key.js";
+import { parseRetryTicketKey } from "../../utils/parse-retry-channel-message.js";
 
 const log = createLogger();
 
 export class SlackListener implements FeedbackListener {
   private readonly client: SlackClient;
   private readonly store: Store;
+  private readonly jiraProjectKey: string;
+  private readonly jiraBaseUrl: string;
   private feedbackHandler: RawFeedbackHandler | null = null;
   private statusHandler: StatusHandler | null = null;
+  private taskRunHandler: TaskRunRequestHandler | null = null;
 
-  constructor(client: SlackClient, store: Store) {
+  constructor(client: SlackClient, store: Store, jiraProjectKey: string, jiraBaseUrl: string) {
     this.client = client;
     this.store = store;
+    this.jiraProjectKey = jiraProjectKey;
+    this.jiraBaseUrl = jiraBaseUrl.replace(/\/$/, "");
   }
 
   onFeedback(handler: RawFeedbackHandler): void {
@@ -25,6 +37,10 @@ export class SlackListener implements FeedbackListener {
 
   onStatusRequest(handler: StatusHandler): void {
     this.statusHandler = handler;
+  }
+
+  onTaskRunRequest(handler: TaskRunRequestHandler): void {
+    this.taskRunHandler = handler;
   }
 
   async start(): Promise<void> {
@@ -195,9 +211,133 @@ export class SlackListener implements FeedbackListener {
     }
   }
 
+  /**
+   * Matches messages like "retry mp-571", "retry 571", "retyr MP-123" and runs the same path as the Retry button.
+   */
+  /**
+   * Pasted browse URL (matching JIRA_BASE_URL) or bare PROJECT-123 → worker fetches issue and may start / cleanup like retry.
+   */
+  private async maybeHandleJiraLinkMessage(message: SlackMessageEvent): Promise<boolean> {
+    const rawText = message.text ?? "";
+    const issueKey = extractJiraIssueKeyFromText(rawText, this.jiraBaseUrl, this.jiraProjectKey);
+    log.debug(
+      `maybeHandleJiraLinkMessage: extracted issueKey=${issueKey ?? "null"} ` +
+        `rawText=${JSON.stringify(rawText.slice(0, 200))}`,
+    );
+    if (!issueKey) return false;
+    if (!this.taskRunHandler) {
+      log.debug("maybeHandleJiraLinkMessage: taskRunHandler not set, ignoring trigger");
+      return false;
+    }
+
+    const bypassJiraStatusCheck =
+      /\bretry\b/i.test(rawText) || /\bretyr\b/i.test(rawText);
+
+    log.info(
+      `Slack JIRA link / key trigger for ${issueKey}` +
+        (bypassJiraStatusCheck ? " (bypass JIRA status checks)" : ""),
+    );
+
+    const channel = message.channel as string;
+    const threadTs =
+      message.thread_ts && message.thread_ts !== message.ts
+        ? (message.thread_ts as string)
+        : (message.ts as string);
+
+    const replyFn = async (text: string) => {
+      await this.client.replyInThread(channel, threadTs, text);
+    };
+
+    await this.taskRunHandler({ issueKey, replyFn, bypassJiraStatusCheck });
+    return true;
+  }
+
+  private async maybeHandleRetryChannelMessage(message: SlackMessageEvent): Promise<boolean> {
+    const rawText = message.text ?? "";
+    const hasRetryWord = /\bretry\b/i.test(rawText) || /\bretyr\b/i.test(rawText);
+    log.debug(
+      `maybeHandleRetryChannelMessage: hasRetryWord=${hasRetryWord} ` +
+        `rawText=${JSON.stringify(rawText.slice(0, 200))} ` +
+        `taskRunHandler=${Boolean(this.taskRunHandler)} feedbackHandler=${Boolean(this.feedbackHandler)} ` +
+        `channel=${String(message.channel ?? "none")} ` +
+        `thread_ts=${message.thread_ts ?? "none"} ts=${String(message.ts ?? "none")}`,
+    );
+
+    const ticketKey = parseRetryTicketKey(rawText, this.jiraProjectKey);
+    log.debug(`maybeHandleRetryChannelMessage: parsed ticketKey=${ticketKey ?? "null"}`);
+    if (!ticketKey) {
+      return false;
+    }
+
+    const channel = message.channel as string;
+    const threadTs =
+      message.thread_ts && message.thread_ts !== message.ts
+        ? (message.thread_ts as string)
+        : (message.ts as string);
+
+    const replyFn = async (text: string) => {
+      await this.client.replyInThread(channel, threadTs, text);
+    };
+
+    if (this.taskRunHandler) {
+      log.info(
+        `Channel retry command for ${ticketKey} (manual run, JIRA status bypass)` +
+          ` (storeTracked=${Boolean(this.store.getTask(ticketKey))})`,
+      );
+      await this.taskRunHandler({
+        issueKey: ticketKey,
+        replyFn,
+        bypassJiraStatusCheck: true,
+      });
+      return true;
+    }
+
+    if (!this.feedbackHandler) {
+      log.warn(
+        "parseRetryTicketKey matched but neither taskRunHandler nor feedbackHandler is set",
+      );
+      return false;
+    }
+
+    if (!this.store.getTask(ticketKey)) {
+      await replyFn(`No tracked task *${ticketKey}* in worker state.`);
+      return true;
+    }
+
+    log.info(`Channel retry command for ${ticketKey} (feedback handler fallback)`);
+    await this.feedbackHandler({
+      taskKey: ticketKey,
+      feedback: "retry",
+      mode: "fix",
+      replyFn,
+    });
+    return true;
+  }
+
   private async handleMessage(message: SlackMessageEvent): Promise<void> {
     // Filter: bot messages and subtypes (edits, joins, etc.)
-    if (message.bot_id || message.subtype) return;
+    const rawText = message.text ?? "";
+    log.info(
+      `handleMessage: bot_id=${message.bot_id ? "yes" : "no"} ` +
+        `subtype=${message.subtype ?? "none"} ` +
+        `channel=${String(message.channel ?? "none")} ` +
+        `thread_ts=${message.thread_ts ?? "none"} ts=${String(message.ts ?? "none")} ` +
+        `text=${JSON.stringify(rawText.slice(0, 250))}`,
+    );
+    if (message.bot_id || message.subtype) {
+      log.debug(
+        `handleMessage: filtered out (bot_id=${Boolean(message.bot_id)} subtype=${message.subtype ?? "none"})`,
+      );
+      return;
+    }
+
+    if (await this.maybeHandleRetryChannelMessage(message)) {
+      return;
+    }
+
+    if (await this.maybeHandleJiraLinkMessage(message)) {
+      return;
+    }
 
     // Channel-level messages (not in a thread)
     if (!message.thread_ts || message.thread_ts === message.ts) {

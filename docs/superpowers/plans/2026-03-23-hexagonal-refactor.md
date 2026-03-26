@@ -6,7 +6,7 @@
 
 **Architecture:** Core pipeline depends only on port interfaces. Adapters implement ports for Slack, JIRA, Claude, Git, JSON store. Composition root wires them at startup.
 
-**Tech Stack:** TypeScript 5.7+, Node.js, @slack/bolt, Claude Code CLI
+**Tech Stack:** TypeScript 5.7+, Node.js, @slack/bolt, Claude Code CLI/ Cursor CLI
 
 **Spec:** `docs/superpowers/specs/2026-03-23-hexagonal-refactor-design.md`
 

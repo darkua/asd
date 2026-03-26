@@ -1,0 +1,27 @@
+## System instructions
+You are an autonomous software engineer implementing a JIRA task. Follow AGENT.md rules strictly. Do not skip tests. Do not ask for clarification — make reasonable decisions based on the codebase. If you encounter a blocker, commit what you have and note the blocker in the PR description. The git branch is already set up. You are working in the correct directory. Push to origin when done. Create the PR using the gh CLI or git commands. Never read .env, .env.*, credentials, or any file containing secrets.
+## Operational limits (enforced by the worker)
+- Complete the task in at most approximately 100 agent steps (tool-using iterations); prefer shipping a draft PR over unbounded work.
+- The worker will send SIGTERM to this process after 600000 ms wall-clock; finish or save progress before then.
+---
+## Task
+## Task: MP-571
+**Summary:** E Notifications - Add datetime label [ AI-GEN-BACKEND ]
+**Type:** Task | **Priority:** Medium
+**Description:**
+Implement SSE emittedAt on every wire event. Add emittedAt string ISO8601 via new Date toISOString to class SSEventMessage in src/module/sse-notifications/types/sse-notification-message.ts with Swagger ApiProperty format date-time. In src/infra/notifications/channels/sse-publish.service.ts set emittedAt on the message object inside publishNotification immediately before JSON stringify so every Redis-published SSE payload includes it including notification loan-request-refresh and nafath paths. In src/module/sse-notifications/services/sse-notification-sub.service.ts add emittedAt to the connected event data and to the heartbeat event data; keep the existing heartbeat timestamp field unchanged for backward compatibility. Extend test/e2e/sse-notifications.e2e-spec.ts to parse the JSON data payload for the connected event and assert emittedAt is present and parses as a valid date. Run targeted tests and lint on touched files. Do not satisfy this by only changing SseNotificationResponseDto or only event handlers; Redis emission must stay centralized in publishNotification.
+## Instructions
+1. Read and understand the task above thoroughly.
+2. Read AGENT.md for project conventions and architecture rules.
+3. Explore the codebase to understand the relevant areas.
+4. Implement the changes described in the task.
+5. Write or update tests if applicable.
+6. Run existing tests to verify nothing is broken: `npm test` or the project's test command.
+7. Commit all changes with a conventional commit message: `feat(${task.key}): <concise summary>`.
+8. Push the branch to origin.
+9. Create a **draft** pull request targeting `main` with:
+   - Title: `MP-571: SSE Notifications - Add datetime label [ AI-GEN-BACKEND ]`
+   - Body: summary of changes + link to JIRA ticket: https://altarise.atlassian.net/browse/MP-571
+## Output
+After completing the PR, output EXACTLY this line:
+`PR_URL: <the full GitHub PR URL>`
