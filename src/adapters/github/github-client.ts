@@ -49,6 +49,19 @@ export class GitHubClient {
     return this.request<GitHubReviewComment[]>("GET", `/repos/${owner}/${repo}/pulls/${prNumber}/reviews/${reviewId}/comments`);
   }
 
+  /** Fetch the current PR head commit (sha + ref). */
+  async getPullRequestHead(
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<{ sha: string; ref: string }> {
+    const pr = await this.request<{ head: { sha: string; ref: string } }>(
+      "GET",
+      `/repos/${owner}/${repo}/pulls/${prNumber}`,
+    );
+    return pr.head;
+  }
+
   /** Reply to a specific review comment on a PR. Returns the new comment ID. */
   async replyToReviewComment(owner: string, repo: string, prNumber: number, commentId: number, body: string): Promise<number> {
     const signed = `${body}\n${GITHUB_BOT_SIGNATURE}`;

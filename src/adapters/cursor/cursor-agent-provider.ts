@@ -26,7 +26,9 @@ type TextBlock = { type: string; text?: string };
 export interface CursorAgentProviderConfig {
   maxTurns: number;
   timeoutMs: number;
+  model?: string;
   baseBranch: string;
+  draftPr: boolean;
   /** Executable on PATH, typically `agent` (Cursor CLI). */
   command: string;
   /** When true, child gets full `process.env` (terminal-like); see `CURSOR_AGENT_INHERIT_ENV`. */
@@ -44,7 +46,9 @@ export interface CursorAgentProviderConfig {
 export class CursorAgentProvider implements AIProvider {
   private readonly maxTurns: number;
   private readonly timeoutMs: number;
+  private readonly model?: string;
   private readonly baseBranch: string;
+  private readonly draftPr: boolean;
   private readonly command: string;
   private readonly inheritFullEnv: boolean;
   private readonly pathPrepend?: string;
@@ -52,7 +56,9 @@ export class CursorAgentProvider implements AIProvider {
   constructor(config: CursorAgentProviderConfig) {
     this.maxTurns = config.maxTurns;
     this.timeoutMs = config.timeoutMs;
+    this.model = config.model;
     this.baseBranch = config.baseBranch;
+    this.draftPr = config.draftPr;
     this.command = config.command;
     this.inheritFullEnv = config.inheritFullEnv ?? false;
     this.pathPrepend = config.pathPrepend;
@@ -62,11 +68,12 @@ export class CursorAgentProvider implements AIProvider {
     const log = createLogger(task.key);
     const startTime = Date.now();
 
-    const taskPrompt = buildPrompt(task, { baseBranch: this.baseBranch });
+    const taskPrompt = buildPrompt(task, { baseBranch: this.baseBranch, draftPr: this.draftPr });
     const systemPrompt = buildSystemPrompt();
     const combined = buildCursorCombinedPrompt(systemPrompt, taskPrompt, {
       maxTurns: this.maxTurns,
       timeoutMs: this.timeoutMs,
+      draftPr: this.draftPr,
     });
 
     log.info("Starting Cursor Agent CLI", {
@@ -74,6 +81,7 @@ export class CursorAgentProvider implements AIProvider {
       maxTurns: this.maxTurns,
       timeoutMs: this.timeoutMs,
       command: this.command,
+      model: this.model ?? "(provider default)",
     });
     log.info(`Combined prompt:\n${combined}`);
 
@@ -89,11 +97,12 @@ export class CursorAgentProvider implements AIProvider {
     const log = createLogger(task.key);
     const startTime = Date.now();
 
-    const taskPrompt = buildFeedbackPrompt(task, feedback, { baseBranch: this.baseBranch });
+    const taskPrompt = buildFeedbackPrompt(task, feedback, { baseBranch: this.baseBranch, draftPr: this.draftPr });
     const systemPrompt = buildFeedbackSystemPrompt(feedback.mode);
     const combined = buildCursorCombinedPrompt(systemPrompt, taskPrompt, {
       maxTurns: this.maxTurns,
       timeoutMs: this.timeoutMs,
+      draftPr: this.draftPr,
     });
 
     log.info(`Starting Cursor Agent with feedback (round ${feedback.round}, mode: ${feedback.mode})`);
@@ -119,6 +128,7 @@ export class CursorAgentProvider implements AIProvider {
     const shellScript = CURSOR_AGENT_SHELL_SCRIPT;
     const childEnv = buildCursorAgentSpawnEnv({
       command: this.command,
+      model: this.model,
       promptFile: promptPath,
       inheritFullEnv: this.inheritFullEnv,
       pathPrepend: this.pathPrepend,
@@ -153,6 +163,7 @@ export class CursorAgentProvider implements AIProvider {
         workDir,
         promptPath,
         command: this.command,
+        model: this.model,
         inheritFullEnv: this.inheritFullEnv,
         pathPrepend: this.pathPrepend,
         timeoutMs: this.timeoutMs,
@@ -285,7 +296,29 @@ export class CursorAgentProvider implements AIProvider {
     onProgress?: ProgressCallback,
   ): void {
     try {
-      if (event.type === "assistant") {
+      if (
+        event.type === "system" &&
+        "subtype" in event &&
+        event.subtype === "init"
+      ) {
+        const effectiveModel =
+          "model" in event && typeof event.model === "string"
+            ? event.model
+            : undefined;
+        if (effectiveModel) {
+          if (this.model && effectiveModel !== this.model) {
+            log.warn(
+              `Cursor effective model differs from AGENT_MODEL: effective=${effectiveModel} requested=${this.model}`,
+            );
+          } else {
+            log.info(`Cursor effective model: ${effectiveModel}`);
+          }
+        } else {
+          log.info(
+            `Cursor init event has no model field (AGENT_MODEL requested=${this.model ?? "(provider default)"})`,
+          );
+        }
+      } else if (event.type === "assistant") {
         const a = event as CursorAssistantEvent;
         const content = a.message?.content;
         if (content) {

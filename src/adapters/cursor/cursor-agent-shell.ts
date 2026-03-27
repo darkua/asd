@@ -6,10 +6,11 @@ import { join } from "node:path";
 
 /** Same shell snippet as the worker: `agent -p -f --trust "$(cat "$CURSOR_PROMPT_FILE")"`. */
 export const CURSOR_AGENT_SHELL_SCRIPT =
-  '"$CURSOR_AGENT_BIN" -p -f --trust "$(cat "$CURSOR_PROMPT_FILE")"';
+  'if [ -n "$CURSOR_AGENT_MODEL" ]; then "$CURSOR_AGENT_BIN" -p -f --trust --model "$CURSOR_AGENT_MODEL" "$(cat "$CURSOR_PROMPT_FILE")"; else "$CURSOR_AGENT_BIN" -p -f --trust "$(cat "$CURSOR_PROMPT_FILE")"; fi';
 
 export interface CursorAgentShellEnvOptions {
   command: string;
+  model?: string;
   promptFile: string;
   inheritFullEnv: boolean;
   pathPrepend?: string;
@@ -78,6 +79,9 @@ export function buildCursorAgentSpawnEnv(opts: CursorAgentShellEnvOptions): Node
   }
 
   env.CURSOR_AGENT_BIN = opts.command;
+  if (opts.model) {
+    env.CURSOR_AGENT_MODEL = opts.model;
+  }
   env.CURSOR_PROMPT_FILE = opts.promptFile;
   return env;
 }
@@ -94,6 +98,7 @@ export interface SpawnCursorAgentShellParams {
   workDir: string;
   promptPath: string;
   command: string;
+  model?: string;
   inheritFullEnv: boolean;
   pathPrepend?: string;
   timeoutMs: number;
@@ -108,6 +113,7 @@ export interface SpawnCursorAgentShellParams {
 export function spawnCursorAgentShell(p: SpawnCursorAgentShellParams): ChildProcess {
   const childEnv = buildCursorAgentSpawnEnv({
     command: p.command,
+    model: p.model,
     promptFile: p.promptPath,
     inheritFullEnv: p.inheritFullEnv,
     pathPrepend: p.pathPrepend,

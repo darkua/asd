@@ -48,7 +48,10 @@ function verifyCursorAgentCli(): void {
   try {
     const out = execSync(cmd, { encoding: "utf-8", stdio: "pipe" }).trim();
     const firstLines = out.split("\n").slice(0, 5).join(" · ");
-    logger.info(`Cursor Agent: ${firstLines || "ok"}`);
+    const modelSuffix = config.worker.agentModel
+      ? ` · AGENT_MODEL override=${config.worker.agentModel}`
+      : "";
+    logger.info(`Cursor Agent: ${firstLines || "ok"}${modelSuffix}`);
   } catch {
     throw new Error(
       `Cursor Agent CLI not found or not working (${cmd}). Put Cursor CLI \`agent\` on PATH or set CURSOR_AGENT_BIN. ` +
@@ -61,7 +64,9 @@ function createAIProvider(): AIProvider {
   const common = {
     maxTurns: config.worker.maxTurns,
     timeoutMs: config.worker.timeoutMs,
+    model: config.worker.agentModel,
     baseBranch: config.repo.baseBranch,
+    draftPr: config.repo.branchDraft,
   };
 
   if (config.worker.agentProvider === AGENT_PROVIDER_CURSOR) {
@@ -91,6 +96,7 @@ async function main(): Promise<void> {
   logger.info(`Poll interval: ${config.worker.pollIntervalMs / 60000} min`);
   logger.info(`Max turns: ${config.worker.maxTurns}`);
   logger.info(`Timeout: ${config.worker.timeoutMs} ms`);
+  logger.info(`Agent model override: ${config.worker.agentModel ?? "(provider default)"}`);
 
   if (config.worker.agentProvider === AGENT_PROVIDER_CLAUDE) {
     verifyClaudeCli();

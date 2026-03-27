@@ -176,7 +176,9 @@ failed → processing (Retry clicked)
 | `JIRA_TRIGGER_LABEL` | `AI-GEN` | Label to trigger processing |
 | `JIRA_DONE_STATUS` | `In Review` | Status after PR creation |
 | `REPO_BASE_BRANCH` | `develop` | Base branch for features |
+| `BRANCH_DRAFT` | `true` | If `true`, agent opens PRs in draft mode; if `false`, opens normal PRs |
 | `AGENT_PROVIDER` | `claude` | `claude` or `cursor` |
+| `AGENT_MODEL` | (unset) | Optional model id passed to selected provider CLI (`--model`) |
 | `AGENT_MAX_TURNS` | `100` | Max agent iterations per task (also: `CLAUDE_MAX_TURNS`) |
 | `AGENT_TIMEOUT_MS` | `600000` | Timeout per task / child process (10 min; also: `CLAUDE_TIMEOUT_MS`) |
 | `CURSOR_AGENT_BIN` | `agent` | Cursor CLI binary (PATH or full path); worker writes prompt to a temp file and runs it via `sh` like `$(cat file)` with cwd = worktree |
@@ -263,7 +265,7 @@ In any channel thread (or top-level message), you can also type **`retry MP-571`
 
 ## Safety & Security
 
-- **Never auto-merges** — all PRs are created as drafts
+- **Never auto-merges** — PRs are created as draft/non-draft based on `BRANCH_DRAFT`
 - **PR validation** — verifies PR exists via `gh pr view` before marking success
 - **Idempotent** — tracks processed tasks, won't re-process
 - **Isolated** — each task runs in its own git worktree

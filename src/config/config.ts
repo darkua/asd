@@ -42,6 +42,7 @@ export const config = {
     path: required("REPO_PATH"),               // /home/maciej/projects/mowafaqa-backend
     baseBranch: optional("REPO_BASE_BRANCH", "develop"),
     remote: optional("REPO_REMOTE", "origin"),
+    branchDraft: isTrue(optional("BRANCH_DRAFT", "true")),
   },
 
   // Slack
@@ -70,6 +71,7 @@ export const config = {
     maxConcurrent: parseInt(optional("MAX_CONCURRENT", "1"), 10),
     maxTurns: parseInt(optional("AGENT_MAX_TURNS", optional("CLAUDE_MAX_TURNS", "100")), 10),
     timeoutMs: parseInt(optional("AGENT_TIMEOUT_MS", optional("CLAUDE_TIMEOUT_MS", "600000")), 10), // 10 min
+    agentModel: optional("AGENT_MODEL", "").trim() || undefined,
     maxFeedbackRounds: parseInt(optional("MAX_FEEDBACK_ROUNDS", "3"), 10),
     healthPort: parseInt(optional("HEALTH_PORT", "0"), 10),
     agentProvider: parseAgentProvider(),

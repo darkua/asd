@@ -36,19 +36,23 @@ const ALLOWED_TOOLS = [
 export class ClaudeProvider implements AIProvider {
   private readonly maxTurns: number;
   private readonly timeoutMs: number;
+  private readonly model?: string;
   private readonly baseBranch: string;
+  private readonly draftPr: boolean;
 
-  constructor(config: { maxTurns: number; timeoutMs: number; baseBranch: string }) {
+  constructor(config: { maxTurns: number; timeoutMs: number; model?: string; baseBranch: string; draftPr: boolean }) {
     this.maxTurns = config.maxTurns;
     this.timeoutMs = config.timeoutMs;
+    this.model = config.model;
     this.baseBranch = config.baseBranch;
+    this.draftPr = config.draftPr;
   }
 
   async run(task: TaskInfo, workDir: string, onProgress?: ProgressCallback): Promise<AIResult> {
     const log = createLogger(task.key);
     const startTime = Date.now();
 
-    const prompt = buildPrompt(task, { baseBranch: this.baseBranch });
+    const prompt = buildPrompt(task, { baseBranch: this.baseBranch, draftPr: this.draftPr });
     const systemPrompt = buildSystemPrompt();
 
     const args = [
@@ -59,8 +63,15 @@ export class ClaudeProvider implements AIProvider {
       "--verbose",
       "--allowedTools", ALLOWED_TOOLS,
     ];
+    if (this.model) {
+      args.push("--model", this.model);
+    }
 
-    log.info("Starting Claude Code CLI", { workDir, maxTurns: this.maxTurns });
+    log.info("Starting Claude Code CLI", {
+      workDir,
+      maxTurns: this.maxTurns,
+      model: this.model ?? "(provider default)",
+    });
     log.info(`Prompt sent to Claude:\n${prompt}`);
     log.info(`System prompt sent to Claude:\n${systemPrompt}`);
 
@@ -71,7 +82,7 @@ export class ClaudeProvider implements AIProvider {
     const log = createLogger(task.key);
     const startTime = Date.now();
 
-    const prompt = buildFeedbackPrompt(task, feedback, { baseBranch: this.baseBranch });
+    const prompt = buildFeedbackPrompt(task, feedback, { baseBranch: this.baseBranch, draftPr: this.draftPr });
     const systemPrompt = buildFeedbackSystemPrompt(feedback.mode);
 
     const args = [
@@ -82,6 +93,9 @@ export class ClaudeProvider implements AIProvider {
       "--verbose",
       "--allowedTools", ALLOWED_TOOLS,
     ];
+    if (this.model) {
+      args.push("--model", this.model);
+    }
 
     log.info(`Starting Claude Code with feedback (round ${feedback.round}, mode: ${feedback.mode})`);
     log.info(`Feedback prompt:\n${prompt}`);

@@ -44151,3 +44151,83 @@
 {"timestamp":"2026-03-26T17:01:27.188Z","level":"info","message":"Found 0 AI-GEN task(s)"}
 {"timestamp":"2026-03-26T17:01:27.189Z","level":"info","message":"No new tasks"}
 {"timestamp":"2026-03-26T17:01:31.205Z","level":"info","message":"Shutting down..."}
+{"timestamp":"2026-03-27T14:37:46.071Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:37:46.071Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:37:46.325Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:37:46.325Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:37:51.072Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:37:51.072Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:37:51.376Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:37:51.376Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:37:56.073Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:37:56.073Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:37:56.419Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:37:56.419Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:01.075Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:01.075Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:01.394Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:01.394Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:06.076Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:06.077Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:06.338Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:06.339Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:11.077Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:11.077Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:11.300Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:11.300Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:16.076Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:16.077Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:16.283Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:16.284Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:21.077Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:21.078Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:21.324Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:21.324Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:26.078Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:26.078Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:26.397Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:26.397Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:31.078Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:31.078Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:31.405Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:31.406Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:36.078Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:36.079Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:36.395Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:36.396Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:41.079Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:41.079Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:41.386Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:41.386Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:46.080Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:46.081Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:46.335Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:46.335Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:51.080Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:51.080Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:51.378Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:51.378Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:38:56.081Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:38:56.082Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:38:56.393Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:38:56.393Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:39:01.084Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:39:01.085Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:39:01.422Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:39:01.422Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:39:06.084Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:39:06.084Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:39:06.285Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:39:06.285Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:39:11.085Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:39:11.086Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:39:11.301Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:39:11.301Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:39:16.086Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:39:16.086Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:39:16.321Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:39:16.321Z","level":"info","message":"No new tasks"}
+{"timestamp":"2026-03-27T14:39:21.087Z","level":"info","message":"--- Poll cycle start ---"}
+{"timestamp":"2026-03-27T14:39:21.088Z","level":"debug","message":"Polling JIRA: project = \"MP\" AND labels = \"BE-AGENT\" AND status = \"To Do\""}
+{"timestamp":"2026-03-27T14:39:21.346Z","level":"info","message":"Found 0 AI-GEN task(s)"}
+{"timestamp":"2026-03-27T14:39:21.346Z","level":"info","message":"No new tasks"}

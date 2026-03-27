@@ -4,4 +4,3 @@ dist/
 .worker-state.json
 .worker-log.json
 *.log
-./worker-log.json

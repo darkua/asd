@@ -143,6 +143,12 @@ export class GitHubListener implements FeedbackListener {
 
     // Self-loop prevention
     if (comment.body.includes(GITHUB_BOT_SIGNATURE)) return;
+    if (this.shouldIgnoreComment(comment)) {
+      log.debug(
+        `Ignoring GitHub comment ${comment.id} by ${comment.user.login}: requires @${this.config.botUsername || "bot"} prefix or CodeRabbit author`,
+      );
+      return;
+    }
 
     const prRef = this.extractPrRef(eventType, payload);
     if (!prRef) {
@@ -276,6 +282,27 @@ export class GitHubListener implements FeedbackListener {
     return trimmed.replace(pattern, "").trim();
   }
 
+  /**
+   * Only trigger on:
+   * 1) comments authored by CodeRabbit, or
+   * 2) comments that start with @<botUsername>.
+   */
+  private shouldIgnoreComment(comment: GitHubComment): boolean {
+    const author = comment.user.login.toLowerCase();
+    if (author === GITHUB_CODERABBIT_USERNAME.toLowerCase()) {
+      return false;
+    }
+
+    const bot = this.config.botUsername.trim();
+    if (!bot) {
+      // Without a configured bot username, only CodeRabbit comments are allowed.
+      return true;
+    }
+
+    const startsWithMention = new RegExp(`^\\s*@${bot}\\b`, "i").test(comment.body);
+    return !startsWithMention;
+  }
+
   /** Enrich feedback text with file/line context from review comments. */
   private enrichWithFileContext(comment: GitHubComment, feedback: string): string {
     if (!comment.path) return feedback;
@@ -395,10 +422,22 @@ export class GitHubListener implements FeedbackListener {
 
   /** Reply to each review comment confirming it was addressed. */
   private async replyToReviewComments(prRef: PrRef, comments: GitHubReviewComment[]): Promise<void> {
+    let commitRef = "latest push";
+    try {
+      const head = await this.client.getPullRequestHead(prRef.owner, prRef.repo, prRef.number);
+      const shortSha = head.sha.slice(0, 7);
+      const commitUrl = `https://github.com/${prRef.owner}/${prRef.repo}/commit/${head.sha}`;
+      commitRef = `[\`${shortSha}\`](${commitUrl})`;
+    } catch (err) {
+      log.warn(
+        `Could not fetch PR head commit for ${prRef.owner}/${prRef.repo}#${prRef.number}: ${toErrorMessage(err)}`,
+      );
+    }
+
     const results = await Promise.allSettled(
       comments.map((comment) => {
         const lineRef = comment.line ? ` (line ${comment.line})` : "";
-        const reply = `✅ Addressed in \`${comment.path}\`${lineRef}. See the latest push.`;
+        const reply = `✅ Addressed in \`${comment.path}\`${lineRef}. See commit ${commitRef}.`;
         return this.client.replyToReviewComment(
           prRef.owner, prRef.repo, prRef.number, comment.id,
           reply,

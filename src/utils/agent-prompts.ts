@@ -29,8 +29,9 @@ export const ALLOWED_TOOLS = [
  */
 export function buildPrompt(
   task: TaskInfo,
-  config: { baseBranch: string },
+  config: { baseBranch: string; draftPr: boolean },
 ): string {
+  const prKind = config.draftPr ? "draft" : "regular";
   return [
     `## Task: ${task.key}`,
     `**Summary:** ${task.summary}`,
@@ -47,6 +48,7 @@ export function buildPrompt(
     "5. Write or update tests if applicable.",
     "6. Run existing tests to verify nothing is broken: `npm test` or the project's test command.",
     "7. Update the changelog (repo-aware) BEFORE committing.",
+    "   - This is the INITIAL implementation run for this task: create the patch version entry now.",
     "   - Detect changelog tooling by inspecting the repo:",
     "     a) If a `.changeset/` directory exists (and `changeset` CLI seems available):",
     "        i) Look for existing `.changeset/*.md` files and copy the frontmatter/package key format.",
@@ -59,7 +61,7 @@ export function buildPrompt(
     "        - Skip changelog updates (do not fail).",
     "8. Commit all changes with a conventional commit message: `feat(${task.key}): <concise summary>`.",
     "9. Push the branch to origin.",
-    `10. Create a **draft** pull request targeting \`${config.baseBranch}\` with:`,
+    `10. Create a **${prKind}** pull request targeting \`${config.baseBranch}\` with:`,
     `   - Title: \`${task.key}: ${task.summary}\``,
     `   - Body: summary of changes + link to JIRA ticket: ${task.url}`,
     "",
@@ -90,9 +92,10 @@ export function buildSystemPrompt(): string {
 export function buildFeedbackPrompt(
   task: TaskInfo,
   feedback: FeedbackRequest,
-  config: { baseBranch: string },
+  config: { baseBranch: string; draftPr: boolean },
 ): string {
   const originalPrompt = buildPrompt(task, config);
+  const prKind = config.draftPr ? "draft" : "regular";
 
   const instructions =
     feedback.mode === "fix"
@@ -101,6 +104,8 @@ export function buildFeedbackPrompt(
           "Review the existing implementation on this branch.",
           "Apply the feedback above. Keep existing work and make targeted changes.",
           "Update the changelog (repo-aware) BEFORE pushing/committing.",
+          "Changelog rule for feedback rounds: DO NOT create a new patch/version entry.",
+          "Instead, find the existing changelog entry for this task and append new line(s) under that same entry.",
           "Push changes to origin and update the existing PR.",
           "",
           "## Output",
@@ -111,7 +116,9 @@ export function buildFeedbackPrompt(
           "## Instructions",
           "Start a fresh implementation from scratch based on the original task and the feedback.",
           "Update the changelog (repo-aware) BEFORE pushing/committing.",
-          `Create a pull request targeting \`${config.baseBranch}\`.`,
+          "Changelog rule for feedback rounds: DO NOT create a new patch/version entry.",
+          "Instead, find the existing changelog entry for this task and append new line(s) under that same entry.",
+          `Create a ${prKind} pull request targeting \`${config.baseBranch}\`.`,
           "",
           "## Output",
           "After completing the PR, output EXACTLY this line:",
@@ -141,6 +148,7 @@ export function buildFeedbackSystemPrompt(mode: "fix" | "redo"): string {
       : "You are starting fresh. The branch is clean.",
     "Push to origin when done. Create or update the PR using the gh CLI.",
     "Before pushing/committing, update the changelog using the repo's existing changelog tooling (Changesets if present, otherwise CHANGELOG.md style if present).",
+    "For feedback rounds, never bump version/create a new patch entry again; only append lines to the existing task entry.",
     "Never read .env, .env.*, credentials, or any file containing secrets.",
   ].join(" ");
 }
@@ -151,14 +159,15 @@ export function buildFeedbackSystemPrompt(mode: "fix" | "redo"): string {
 export function buildCursorCombinedPrompt(
   systemPrompt: string,
   taskPrompt: string,
-  limits: { maxTurns: number; timeoutMs: number },
+  limits: { maxTurns: number; timeoutMs: number; draftPr: boolean },
 ): string {
+  const prGuidance = limits.draftPr ? "prefer shipping a draft PR" : "prefer shipping a PR";
   return [
     "## System instructions",
     systemPrompt,
     "",
     "## Operational limits (enforced by the worker)",
-    `- Complete the task in at most approximately ${limits.maxTurns} agent steps (tool-using iterations); prefer shipping a draft PR over unbounded work.`,
+    `- Complete the task in at most approximately ${limits.maxTurns} agent steps (tool-using iterations); ${prGuidance} over unbounded work.`,
     `- The worker will send SIGTERM to this process after ${limits.timeoutMs} ms wall-clock; finish or save progress before then.`,
     "",
     "---",

@@ -1,6 +1,6 @@
 {
   "name": "jira-ai-worker",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "JIRA → Claude Code MAX → PR automation worker",
   "type": "module",
   "scripts": {
