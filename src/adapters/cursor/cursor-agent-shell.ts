@@ -50,13 +50,24 @@ export function buildRestrictedChildEnv(): NodeJS.ProcessEnv {
 /** Resolve `command -v` for the agent binary under the same env the child will use. */
 export function resolveAgentBinaryInEnv(command: string, env: NodeJS.ProcessEnv): string {
   const q = `'${String(command).replace(/'/g, `'\\''`)}'`;
-  const r = spawnSync("/bin/sh", ["-c", `command -v ${q}`], {
-    env,
-    encoding: "utf-8",
-    timeout: 5000,
-  });
-  const line = (r.stdout ?? "").trim().split("\n")[0];
-  return line || "(not found)";
+  try {
+    const r = spawnSync("/bin/sh", ["-c", `command -v ${q}`], {
+      env,
+      encoding: "utf-8",
+      timeout: 15000,
+    });
+
+    if (r.error) {
+      const code = (r.error as NodeJS.ErrnoException).code ?? "UNKNOWN";
+      return `(resolve failed: ${code})`;
+    }
+
+    const line = (r.stdout ?? "").trim().split("\n")[0];
+    return line || "(not found)";
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return `(resolve failed: ${msg})`;
+  }
 }
 
 /** Child env: restricted or full inherit + optional PATH prepend + spawn-only vars. */
