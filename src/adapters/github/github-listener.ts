@@ -104,6 +104,13 @@ export class GitHubListener implements FeedbackListener {
     }
     log.info(`Matched task ${task.key} (status: ${task.status})`);
 
+    if (!(await this.reviewOrInlineCommentsMentionBot(review, prRef))) {
+      log.debug(
+        `Ignoring PR review — body and inline comments lack @${this.config.botUsername || "bot"}`,
+      );
+      return;
+    }
+
     const { feedback, allComments } = await this.buildReviewFeedback(prRef, [review], "PR Review");
     if (!feedback) {
       log.info(`Review on ${task.key} has no actionable comments — skipping`);
@@ -145,7 +152,7 @@ export class GitHubListener implements FeedbackListener {
     if (comment.body.includes(GITHUB_BOT_SIGNATURE)) return;
     if (this.shouldIgnoreComment(comment)) {
       log.debug(
-        `Ignoring GitHub comment ${comment.id} by ${comment.user.login}: requires @${this.config.botUsername || "bot"} prefix or CodeRabbit author`,
+        `Ignoring GitHub comment ${comment.id} by ${comment.user.login}: missing @${this.config.botUsername || "bot"} in body`,
       );
       return;
     }
@@ -166,7 +173,7 @@ export class GitHubListener implements FeedbackListener {
     }
     log.info(`Matched task ${task.key} (status: ${task.status})`);
 
-    const text = this.stripBotPrefix(comment.body);
+    const text = this.stripMentionsOfBot(comment.body);
     const { feedback, mode, isCommand } = this.parseComment(text);
 
     if (isCommand && feedback === "status") {
@@ -274,33 +281,45 @@ export class GitHubListener implements FeedbackListener {
     return undefined;
   }
 
-  /** Strip bot username if it's the first word (e.g. "mowafaqa-agent-fe fix: do X" → "fix: do X") */
-  private stripBotPrefix(text: string): string {
-    const trimmed = text.trim();
-    if (!this.config.botUsername) return trimmed;
-    const pattern = new RegExp(`^@?${this.config.botUsername}\\s+`, "i");
-    return trimmed.replace(pattern, "").trim();
+  /** Remove @bot mentions from text before parsing commands / feedback (GitHub body is plain markdown). */
+  private stripMentionsOfBot(text: string): string {
+    const bot = this.config.botUsername.trim();
+    if (!bot) return text.trim();
+    const esc = bot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return text.replace(new RegExp(`@${esc}\\b`, "gi"), " ").replace(/\s+/g, " ").trim();
   }
 
-  /**
-   * Only trigger on:
-   * 1) comments authored by CodeRabbit, or
-   * 2) comments that start with @<botUsername>.
-   */
-  private shouldIgnoreComment(comment: GitHubComment): boolean {
-    const author = comment.user.login.toLowerCase();
-    if (author === GITHUB_CODERABBIT_USERNAME.toLowerCase()) {
-      return false;
-    }
-
+  /** True if `body` contains a GitHub @mention of the configured bot (case-insensitive). */
+  private commentBodyMentionsBot(body: string): boolean {
     const bot = this.config.botUsername.trim();
-    if (!bot) {
-      // Without a configured bot username, only CodeRabbit comments are allowed.
+    if (!bot) return false;
+    const esc = bot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`@${esc}\\b`, "i").test(body);
+  }
+
+  /** Ignore issue / review comments that do not @mention the bot. */
+  private shouldIgnoreComment(comment: GitHubComment): boolean {
+    if (!this.config.botUsername.trim()) {
       return true;
     }
+    return !this.commentBodyMentionsBot(comment.body);
+  }
 
-    const startsWithMention = new RegExp(`^\\s*@${bot}\\b`, "i").test(comment.body);
-    return !startsWithMention;
+  /** PR review: require @bot in the review summary or in at least one inline comment on that review. */
+  private async reviewOrInlineCommentsMentionBot(
+    review: GitHubReview,
+    prRef: PrRef,
+  ): Promise<boolean> {
+    if (this.commentBodyMentionsBot(review.body ?? "")) {
+      return true;
+    }
+    const inline = await this.client.getReviewComments(
+      prRef.owner,
+      prRef.repo,
+      prRef.number,
+      review.id,
+    );
+    return inline.some((c) => this.commentBodyMentionsBot(c.body ?? ""));
   }
 
   /** Enrich feedback text with file/line context from review comments. */

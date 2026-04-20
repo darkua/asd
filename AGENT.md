@@ -126,6 +126,10 @@ During processing: all buttons replaced with Cancel-only. Full buttons re-appear
 |---------|--------|
 | `@bot` mention | Shows task list with Open buttons per task |
 | `status` text | Same as mention — shows task list |
+| `retry MP-123` | Manual run (cleans failed state / branch), same as Retry button path; optional tail → short operator prompt for the agent |
+| `retry https://…/browse/MP-123 …` | Same; **bypasses** JIRA status guard (only **To Do** / **In progress** otherwise) |
+| `retry MP-123 fix only X` | Same as above; text after the key is `directAgentPrompt` (minimal template, not the long JIRA block) |
+| `{JIRA_TRIGGER_LABEL} MP-123 …` | Same manual run; text after the issue key is optional operator instructions (e.g. `AI-GEN MP-55 add logging only`) |
 
 ### Task Status Flow
 

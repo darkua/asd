@@ -11,7 +11,8 @@ import { buildActionButtons, STATUS_EMOJI } from "./slack-ui.js";
 import { MAX_TASK_LIST_DISPLAY } from "../../constants.js";
 import type { SlackActionPayload, SlackViewSubmissionPayload, SlackMessageEvent } from "./slack-types.js";
 import { extractJiraIssueKeyFromText } from "../../utils/extract-jira-issue-key.js";
-import { parseRetryTicketKey } from "../../utils/parse-retry-channel-message.js";
+import { parseRetryChannelMessage } from "../../utils/parse-retry-channel-message.js";
+import { parseIssueKeyAndOperatorTail } from "../../utils/parse-trigger-label-command.js";
 
 const log = createLogger();
 
@@ -20,15 +21,23 @@ export class SlackListener implements FeedbackListener {
   private readonly store: Store;
   private readonly jiraProjectKey: string;
   private readonly jiraBaseUrl: string;
+  private readonly triggerLabel: string;
   private feedbackHandler: RawFeedbackHandler | null = null;
   private statusHandler: StatusHandler | null = null;
   private taskRunHandler: TaskRunRequestHandler | null = null;
 
-  constructor(client: SlackClient, store: Store, jiraProjectKey: string, jiraBaseUrl: string) {
+  constructor(
+    client: SlackClient,
+    store: Store,
+    jiraProjectKey: string,
+    jiraBaseUrl: string,
+    triggerLabel: string,
+  ) {
     this.client = client;
     this.store = store;
     this.jiraProjectKey = jiraProjectKey;
     this.jiraBaseUrl = jiraBaseUrl.replace(/\/$/, "");
+    this.triggerLabel = triggerLabel;
   }
 
   onFeedback(handler: RawFeedbackHandler): void {
@@ -212,8 +221,57 @@ export class SlackListener implements FeedbackListener {
   }
 
   /**
-   * Matches messages like "retry mp-571", "retry 571", "retyr MP-123" and runs the same path as the Retry button.
+   * `{JIRA_TRIGGER_LABEL} PROJECT-123 optional instructions` — same manual run path as retry (clean + run);
+   * when instructions are present, agent gets a short operator-directed prompt instead of the long JIRA template.
    */
+  private async maybeHandleTriggerLabelDirectCommand(message: SlackMessageEvent): Promise<boolean> {
+    const label = this.triggerLabel.trim();
+    if (!label) return false;
+
+    const raw = message.text ?? "";
+    const stripped = raw.replace(/^<@[A-Z0-9]+>\s*/i, "").trim();
+    const esc = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`^${esc}\\s+(.+)$`, "i");
+    const m = stripped.match(re);
+    if (!m) return false;
+
+    const parsedKey = parseIssueKeyAndOperatorTail(m[1], this.jiraProjectKey);
+    if (!parsedKey) {
+      log.info(
+        `Trigger-label ${JSON.stringify(label)}: expected "${label} MP-123 …" or "${label} 123 …" — got ${JSON.stringify(m[1].slice(0, 120))}`,
+      );
+      return false;
+    }
+
+    if (!this.taskRunHandler) {
+      log.debug("maybeHandleTriggerLabelDirectCommand: taskRunHandler not set");
+      return false;
+    }
+
+    const channel = message.channel as string;
+    const threadTs =
+      message.thread_ts && message.thread_ts !== message.ts
+        ? (message.thread_ts as string)
+        : (message.ts as string);
+
+    const replyFn = async (text: string) => {
+      await this.client.replyInThread(channel, threadTs, text);
+    };
+
+    const tail = parsedKey.operatorTail.trim();
+    log.info(
+      `Slack trigger-label run for ${parsedKey.issueKey}${tail ? " (operator direct prompt)" : " (default JIRA template)"}`,
+    );
+
+    await this.taskRunHandler({
+      issueKey: parsedKey.issueKey,
+      replyFn,
+      bypassJiraStatusCheck: true,
+      directAgentPrompt: tail || undefined,
+    });
+    return true;
+  }
+
   /**
    * Pasted browse URL (matching JIRA_BASE_URL) or bare PROJECT-123 → worker fetches issue and may start / cleanup like retry.
    */
@@ -263,11 +321,13 @@ export class SlackListener implements FeedbackListener {
         `thread_ts=${message.thread_ts ?? "none"} ts=${String(message.ts ?? "none")}`,
     );
 
-    const ticketKey = parseRetryTicketKey(rawText, this.jiraProjectKey);
-    log.debug(`maybeHandleRetryChannelMessage: parsed ticketKey=${ticketKey ?? "null"}`);
-    if (!ticketKey) {
+    const parsedRetry = parseRetryChannelMessage(rawText, this.jiraProjectKey, this.jiraBaseUrl);
+    log.debug(`maybeHandleRetryChannelMessage: parsed=${parsedRetry ? parsedRetry.key : "null"}`);
+    if (!parsedRetry) {
       return false;
     }
+    const ticketKey = parsedRetry.key;
+    const directTail = parsedRetry.operatorTail?.trim();
 
     const channel = message.channel as string;
     const threadTs =
@@ -288,13 +348,14 @@ export class SlackListener implements FeedbackListener {
         issueKey: ticketKey,
         replyFn,
         bypassJiraStatusCheck: true,
+        directAgentPrompt: directTail || undefined,
       });
       return true;
     }
 
     if (!this.feedbackHandler) {
       log.warn(
-        "parseRetryTicketKey matched but neither taskRunHandler nor feedbackHandler is set",
+        "parseRetryChannelMessage matched but neither taskRunHandler nor feedbackHandler is set",
       );
       return false;
     }
@@ -332,6 +393,10 @@ export class SlackListener implements FeedbackListener {
     }
 
     if (await this.maybeHandleRetryChannelMessage(message)) {
+      return;
+    }
+
+    if (await this.maybeHandleTriggerLabelDirectCommand(message)) {
       return;
     }
 

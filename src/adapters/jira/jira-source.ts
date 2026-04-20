@@ -88,17 +88,6 @@ export class JiraSource implements TaskSource {
         };
       }
 
-      const summary = issue.fields.summary || "";
-      const summaryNorm = summary.replace(/\s+/g, "");
-      const triggerTag = `[${this.config.triggerLabel}]`;
-      const triggerNorm = triggerTag.replace(/\s+/g, "");
-      if (!summaryNorm.toLowerCase().includes(triggerNorm.toLowerCase())) {
-        return {
-          ok: false,
-          reason: `Summary must include ${triggerTag} (same trigger as JIRA poll / ${triggerTag} with optional spaces).`,
-        };
-      }
-
       const statusName = (issue.fields.status?.name || "").trim();
       const st = statusName.toLowerCase();
       if (!options?.bypassStatusFilter) {

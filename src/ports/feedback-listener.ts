@@ -8,6 +8,11 @@ export interface TaskRunRequest {
   replyFn: (text: string) => Promise<void>;
   /** When true (e.g. Slack message includes "retry"), skip JIRA status filters and the worker's "In progress" guard. */
   bypassJiraStatusCheck?: boolean;
+  /**
+   * Operator-provided instructions: agent uses a short prompt built around this text instead of the default JIRA template.
+   * Set from Slack `retry KEY your instructions` or `{JIRA_TRIGGER_LABEL} KEY your instructions`.
+   */
+  directAgentPrompt?: string;
 }
 
 export type TaskRunRequestHandler = (req: TaskRunRequest) => Promise<void>;

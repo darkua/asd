@@ -113,7 +113,7 @@ export class ClaudeProvider implements AIProvider {
       "LANG", "LC_ALL", "LC_CTYPE",
       "TERM", "TERM_PROGRAM",
       "NODE_ENV", "NODE_OPTIONS",
-      "GITHUB_TOKEN", "GH_TOKEN",
+      "GH_TOKEN", "GITHUB_TOKEN",
       "SSH_AUTH_SOCK", "SSH_AGENT_PID",
       "TMPDIR", "XDG_CONFIG_HOME", "XDG_DATA_HOME",
     ];

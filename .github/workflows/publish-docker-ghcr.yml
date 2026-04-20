@@ -1,0 +1,79 @@
+# Manual build → push to GitHub Container Registry (ghcr.io). See:
+# https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images
+
+name: Publish Docker image (GHCR)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Git branch (or tag) to checkout and build the image from"
+        required: true
+        default: main
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      # Docker tags may only use [a-z0-9._-]; normalize branch names like feature/foo
+      - name: Sanitize branch name for image tag
+        id: slug
+        shell: bash
+        run: |
+          s=$(echo "${{ inputs.branch }}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g;s/^-+|-+$//g')
+          echo "branch_slug=${s:-build}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.slug.outputs.branch_slug }}
+            type=sha,prefix=${{ steps.slug.outputs.branch_slug }}-,format=short
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # https://docs.github.com/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

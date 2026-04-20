@@ -5,7 +5,7 @@ import type { FeedbackListener, TaskRunRequest } from "../ports/feedback-listene
 import type { Store } from "../ports/store.js";
 import type { VCS } from "../ports/vcs.js";
 import type { AIProvider } from "../ports/ai-provider.js";
-import type { RawFeedback, WorkerConfig, WorkerStatus } from "../ports/types.js";
+import type { RawFeedback, TaskInfo, WorkerConfig, WorkerStatus } from "../ports/types.js";
 import { TaskPipeline } from "./task-pipeline.js";
 import { FeedbackCommandHandler } from "./feedback-command-handler.js";
 import { ProcessingLockManager } from "./processing-lock-manager.js";
@@ -176,7 +176,7 @@ export class Worker {
    * Slack: pasted JIRA browse URL or bare ticket key — fetch issue, cleanup if failed/orphan branch, run pipeline.
    */
   private async handleTaskRunRequest(req: TaskRunRequest): Promise<void> {
-    const { issueKey, replyFn, bypassJiraStatusCheck } = req;
+    const { issueKey, replyFn, bypassJiraStatusCheck, directAgentPrompt } = req;
     const log = createLogger(issueKey);
     log.info(
       bypassJiraStatusCheck
@@ -184,10 +184,8 @@ export class Worker {
         : "Manual task run requested (JIRA link or key from Slack)",
     );
 
-    const fetched = await this.taskSource.fetchIssueForManualRun(
-      issueKey,
-      bypassJiraStatusCheck ? { bypassStatusFilter: true } : undefined,
-    );
+    const manualOpts = bypassJiraStatusCheck ? { bypassStatusFilter: true } : undefined;
+    const fetched = await this.taskSource.fetchIssueForManualRun(issueKey, manualOpts);
     if (!fetched.ok) {
       await replyFn(fetched.reason);
       return;
@@ -265,10 +263,17 @@ export class Worker {
       return;
     }
 
-    await replyFn(`Starting AI implementation for *${issueKey}*…`);
+    const direct = directAgentPrompt?.trim();
+    if (direct) {
+      await replyFn(`Starting AI for *${issueKey}* with **operator-directed** prompt…`);
+    } else {
+      await replyFn(`Starting AI implementation for *${issueKey}*…`);
+    }
+
+    const taskToRun: TaskInfo = direct ? { ...task, directPromptOverride: direct } : task;
 
     await this.lockManager.withLock(issueKey, async () => {
-      await this.pipeline.processTask(task);
+      await this.pipeline.processTask(taskToRun);
     });
     await this.lockManager.drainQueue(this.pipeline);
   }

@@ -5,13 +5,13 @@ export type ManualTaskFetchResult =
   | { ok: false; reason: string };
 
 export type FetchIssueForManualRunOptions = {
-  /** Skip "To Do" / "In progress" only constraint — use for explicit Slack retry messages. */
+  /** Skip "To Do" / "In progress" only constraint — use for explicit Slack retry / trigger-label runs. */
   bypassStatusFilter?: boolean;
 };
 
 export interface TaskSource {
   poll(): Promise<TaskInfo[]>;
-  /** Load one issue for Slack/manual trigger (validates project, trigger tag; status unless bypassed). */
+  /** Load one issue for Slack/manual trigger (validates project; status unless bypassed). */
   fetchIssueForManualRun(
     key: string,
     options?: FetchIssueForManualRunOptions,

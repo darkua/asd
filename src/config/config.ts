@@ -40,6 +40,8 @@ export const config = {
   // Git / Repo
   repo: {
     path: required("REPO_PATH"),               // /home/maciej/projects/mowafaqa-backend
+    /** HTTPS clone URL (no credentials). When set, worker clones or re-fetch-es via GH_TOKEN (or GITHUB_TOKEN) (Docker-friendly). */
+    cloneUrl: optional("REPO_GIT_URL", "").trim() || undefined,
     baseBranch: optional("REPO_BASE_BRANCH", "develop"),
     remote: optional("REPO_REMOTE", "origin"),
     branchDraft: isTrue(optional("BRANCH_DRAFT", "true")),
@@ -62,7 +64,7 @@ export const config = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
-    token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "",
+    token: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "",
   },
 
   // Worker

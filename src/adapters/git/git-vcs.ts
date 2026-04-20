@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join, dirname, resolve, relative, isAbsolute } from "node:path";
+import { tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { VCS } from "../../ports/vcs.js";
 import { createLogger } from "../../logger.js";
 import { GIT_TIMEOUT_MS, INSTALL_TIMEOUT_MS } from "../../constants.js";
@@ -15,6 +16,20 @@ interface GitConfig {
 export class GitVCS implements VCS {
   constructor(private config: GitConfig) {}
 
+  /**
+   * Linked worktrees must live outside the main working tree. For repos at a top-level path
+   * (e.g. Docker `/workspace`), `dirname` is `/` — use a per-repo dir under the temp folder.
+   */
+  private worktreesRoot(): string {
+    const main = resolve(this.config.path);
+    const parent = dirname(main);
+    if (parent === "/" || parent === "") {
+      const leaf = basename(main) || "repo";
+      return join(tmpdir(), "jira-ai-worktrees", leaf);
+    }
+    return join(parent, ".worktrees");
+  }
+
   private git(cmd: string, cwd?: string): string {
     return execSync(`git ${cmd}`, {
       cwd: cwd || this.config.path,
@@ -28,7 +43,7 @@ export class GitVCS implements VCS {
   }
 
   worktreePath(key: string): string {
-    return join(dirname(this.config.path), ".worktrees", key.toLowerCase());
+    return join(this.worktreesRoot(), key.toLowerCase());
   }
 
   branchExists(key: string): boolean {
@@ -43,7 +58,7 @@ export class GitVCS implements VCS {
 
   /** True if `p` is this repo's shared `.worktrees` directory or a path inside it. */
   private isUnderProjectWorktrees(p: string): boolean {
-    const root = resolve(dirname(this.config.path), ".worktrees");
+    const root = resolve(this.worktreesRoot());
     const rel = relative(root, resolve(p));
     if (rel === "") return true;
     if (isAbsolute(rel)) return false;

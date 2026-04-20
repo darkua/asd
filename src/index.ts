@@ -3,6 +3,7 @@ import { config } from "./config/config.js";
 import { logger } from "./logger.js";
 import { AGENT_PROVIDER_CLAUDE, AGENT_PROVIDER_CURSOR } from "./constants.js";
 import { toErrorMessage } from "./utils/errors.js";
+import { ensureRepoFromRemote } from "./utils/ensure-repo-clone.js";
 
 // Adapters
 import { ClaudeProvider } from "./adapters/claude/claude-provider.js";
@@ -93,10 +94,28 @@ async function main(): Promise<void> {
   logger.info(`Project: ${config.jira.project}`);
   logger.info(`Trigger: label "${config.jira.triggerLabel}"`);
   logger.info(`Repo: ${config.repo.path}`);
+  if (config.repo.cloneUrl) {
+    logger.info(`REPO_GIT_URL: ${config.repo.cloneUrl}`);
+  }
   logger.info(`Poll interval: ${config.worker.pollIntervalMs / 60000} min`);
   logger.info(`Max turns: ${config.worker.maxTurns}`);
   logger.info(`Timeout: ${config.worker.timeoutMs} ms`);
   logger.info(`Agent model override: ${config.worker.agentModel ?? "(provider default)"}`);
+
+  if (config.repo.cloneUrl) {
+    if (!config.github.token) {
+      throw new Error(
+        "REPO_GIT_URL is set but GH_TOKEN / GITHUB_TOKEN is missing. Add a token with repo scope for HTTPS clone and push.",
+      );
+    }
+    ensureRepoFromRemote({
+      repoPath: config.repo.path,
+      cleanCloneUrl: config.repo.cloneUrl,
+      token: config.github.token,
+      remote: config.repo.remote,
+      baseBranch: config.repo.baseBranch,
+    });
+  }
 
   if (config.worker.agentProvider === AGENT_PROVIDER_CLAUDE) {
     verifyClaudeCli();
@@ -154,7 +173,13 @@ async function main(): Promise<void> {
   let slackListener: SlackListener | null = null;
   if (!isOnce && canRunSlackListener) {
     await slackClient.start();
-    slackListener = new SlackListener(slackClient, store, config.jira.project, config.jira.baseUrl);
+    slackListener = new SlackListener(
+      slackClient,
+      store,
+      config.jira.project,
+      config.jira.baseUrl,
+      config.jira.triggerLabel,
+    );
   }
 
   const healthServer = new HealthServer(config.worker.healthPort, store);
@@ -167,7 +192,7 @@ async function main(): Promise<void> {
     logger.info("GitHub integration: enabled");
 
     if (!config.github.token) {
-      logger.warn("GITHUB_TOKEN / GH_TOKEN not set — GitHub API calls will fail");
+      logger.warn("GH_TOKEN / GITHUB_TOKEN not set — GitHub API calls will fail");
     }
     if (config.worker.healthPort <= 0) {
       logger.warn("HEALTH_PORT is 0 — GitHub webhook endpoint will not be available. Set HEALTH_PORT to enable.");

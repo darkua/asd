@@ -5,6 +5,11 @@ export interface TaskInfo {
   issueType: string;
   priority: string;
   url: string;
+  /**
+   * When set (Slack `JIRA_TRIGGER_LABEL …` or `retry KEY …`), the agent prompt uses this operator text
+   * as the primary instructions instead of the long default JIRA template.
+   */
+  directPromptOverride?: string;
 }
 
 export interface ThreadRef {

@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env
+.env.*
+!.env.example
+.worker-state.json
+.worker-log.json
+*.log
+.DS_Store
+coverage
+.cursor
+.claude

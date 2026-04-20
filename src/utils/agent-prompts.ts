@@ -24,6 +24,33 @@ export const ALLOWED_TOOLS = [
   "Bash(mv:*)",
 ].join(",");
 
+/** Short prompt when the operator supplied explicit instructions (Slack label / retry tail). */
+function buildOperatorDirectPrompt(
+  task: TaskInfo,
+  operatorInstructions: string,
+  config: { baseBranch: string; draftPr: boolean },
+): string {
+  const prKind = config.draftPr ? "draft" : "regular";
+  return [
+    `## Task: ${task.key}`,
+    `**Summary:** ${task.summary}`,
+    `**JIRA:** ${task.url}`,
+    "",
+    "## Operator instructions (primary — do this)",
+    operatorInstructions,
+    "",
+    "## How to work",
+    "1. Read AGENT.md for this repo. Explore the codebase as needed.",
+    "2. Implement exactly what the operator asked. Run tests the project uses (`npm test` or equivalent).",
+    "3. Update changelog repo-aware BEFORE committing (Changesets, CHANGELOG.md, or skip if none).",
+    `4. Commit: \`feat(${task.key}): <concise summary>\`. Push to origin.`,
+    `5. Open a **${prKind}** PR to \`${config.baseBranch}\` — title \`${task.key}: <summary>\`, body includes ${task.url}.`,
+    "",
+    "## Output",
+    "When done, output EXACTLY one line: `PR_URL: <the full GitHub PR URL>`",
+  ].join("\n");
+}
+
 /**
  * Build the implementation prompt from JIRA task info.
  */
@@ -31,6 +58,11 @@ export function buildPrompt(
   task: TaskInfo,
   config: { baseBranch: string; draftPr: boolean },
 ): string {
+  const direct = task.directPromptOverride?.trim();
+  if (direct) {
+    return buildOperatorDirectPrompt(task, direct, config);
+  }
+
   const prKind = config.draftPr ? "draft" : "regular";
   return [
     `## Task: ${task.key}`,

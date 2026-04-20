@@ -216,13 +216,13 @@ Enable GitHub PR comment feedback — the bot listens for PR review comments and
 
 1. Set `GITHUB_INTEGRATION_ENABLED=true` in `.env`
 2. Set `HEALTH_PORT` to a non-zero value (e.g. `9090`) — the webhook endpoint runs on the health server
-3. Provide a GitHub token via `GITHUB_TOKEN` or `GH_TOKEN` (needs `repo` scope for posting comments)
+3. Provide a GitHub token via `GH_TOKEN` or `GITHUB_TOKEN` (needs `repo` scope for posting comments)
 4. Create a webhook on your GitHub repo (or org):
    - **Payload URL:** `http://<your-host>:<HEALTH_PORT>/webhooks/github`
    - **Content type:** `application/json`
    - **Secret:** set a random string and put the same value in `GITHUB_WEBHOOK_SECRET`
    - **Events:** select "Issue comments", "Pull request reviews", and "Pull request review comments"
-5. Optionally set `GITHUB_BOT_USERNAME` to the GitHub username of your bot — this enables `@mention` command parsing and strips the prefix from feedback text
+5. Set `GITHUB_BOT_USERNAME` to your bot’s GitHub login — **feedback and commands only run when a comment or review includes `@<that-username>`** (mentions are stripped before the agent sees the text)
 
 #### Exposing the webhook
 
@@ -237,13 +237,13 @@ The webhook endpoint must be reachable from GitHub. Options:
 | Variable                     | Default | Description                                    |
 | ---------------------------- | ------- | ---------------------------------------------- |
 | `GITHUB_INTEGRATION_ENABLED` | `false` | Set to `true` to enable                        |
-| `GITHUB_TOKEN` / `GH_TOKEN`  | —       | GitHub personal access token (`repo` scope)    |
+| `GH_TOKEN` / `GITHUB_TOKEN`  | —       | GitHub personal access token (`repo` scope)    |
 | `GITHUB_WEBHOOK_SECRET`      | —       | Secret for HMAC signature verification         |
-| `GITHUB_BOT_USERNAME`        | —       | Bot's GitHub username (for `@mention` parsing) |
+| `GITHUB_BOT_USERNAME`        | —       | Required for GitHub triggers: comment/review must `@mention` this user |
 
 #### PR commands via `@mention`
 
-Comment on a PR tracked by the worker with `@<bot-username> <command>`:
+The comment body must include `@<bot-username>` anywhere (not only CodeRabbit). Example:
 
 | Command                 | Action                                            |
 | ----------------------- | ------------------------------------------------- |
@@ -255,13 +255,13 @@ Comment on a PR tracked by the worker with `@<bot-username> <command>`:
 | `@bot retry`            | Reset a failed task for reprocessing              |
 | `@bot <bare text>`      | Treated as `fix:` feedback                        |
 
-#### Automatic review handling
+#### PR review handling
 
-When a PR review is submitted (e.g. "Request changes" from a reviewer or from CodeRabbit), the worker automatically picks up the review comments as feedback and applies fixes. Each line-level comment gets a reply confirming it was addressed.
+When a PR review is submitted, the worker only acts if the **review summary or at least one inline comment on that review** includes `@<bot-username>`. Then it aggregates review text and inline comments as feedback. Line-level threads get a reply when work completes.
 
 In any channel thread (or top-level message), you can also type **`retry MP-571`**, **`retry mp-571`**, or **`retry 571`** (numeric suffix uses `JIRA_PROJECT_KEY`). Same behavior as the **Retry** button (failed tasks only). Typo **`retyr`** is accepted.
 
-**Start work from a JIRA link:** paste your issue URL matching `JIRA_BASE_URL`, e.g. `https://your-org.atlassian.net/browse/MP-571` (or a message that is only `MP-571`). The worker loads the issue, checks it matches **project**, **`[JIRA_TRIGGER_LABEL]`** in summary, and status **To Do** or **In progress**. If the task **failed** or a **feature branch** still exists, it clears worker state and git like **Retry**, then starts **`processTask`** immediately (no need to wait for the next poll).
+**Start work from a JIRA link:** paste your issue URL matching `JIRA_BASE_URL`, e.g. `https://your-org.atlassian.net/browse/MP-571` (or a message that is only `MP-571`). The worker loads the issue and checks it matches **project** and status **To Do** or **In progress** (Slack **retry** / trigger-label commands can bypass the status check). If the task **failed** or a **feature branch** still exists, it clears worker state and git like **Retry**, then starts **`processTask`** immediately (no need to wait for the next poll). Polling still selects issues by JIRA **label** `JIRA_TRIGGER_LABEL` and **To Do** in JQL.
 
 ## Safety & Security
 

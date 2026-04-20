@@ -1,0 +1,25 @@
+# Load env from `.env` (Compose also reads this file for ${VAR} substitution).
+# Same port on host and in-container: set HEALTH_PORT in `.env` (e.g. 8080).
+#
+# Repo in Docker:
+# - Token clone: set REPO_GIT_URL=https://github.com/org/repo.git and GH_TOKEN (or GITHUB_TOKEN).
+#   Use the named volume below (default) so `/workspace` is writable.
+# - Bind mount: set REPO_VOLUME to an absolute host path (e.g. /Users/you/project).
+
+services:
+  worker:
+    build: .
+    image: jira-ai-worker:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${HEALTH_PORT:-8080}:${HEALTH_PORT:-8080}"
+    environment:
+      HEALTH_PORT: "${HEALTH_PORT:-8080}"
+      REPO_PATH: /workspace
+    volumes:
+      - ${REPO_VOLUME:-repo_workspace}:/workspace
+
+volumes:
+  repo_workspace:
